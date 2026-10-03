@@ -1,14 +1,15 @@
 import type {
-  Student,
+  ActivityLog,
+  Announcement,
   Enrollment,
   GradeRecord,
+  Notification,
   ScheduleClass,
-  Announcement,
+  Student,
+  Subject,
   SupportTicket,
   SystemSettings,
-  ActivityLog,
-  Notification,
-  Subject,
+  YearLevel,
 } from '@/types';
 
 // ─── Subjects Catalog ────────────────────────────────────────────────
@@ -17,13 +18,40 @@ export const subjects: Subject[] = [
   { id: 's1', code: 'CS201', title: 'Data Structures', units: 3 },
   { id: 's2', code: 'CS202', title: 'Information Management', units: 3 },
   { id: 's3', code: 'CS203', title: 'Web Systems', units: 3 },
-  { id: 's4', code: 'CS204', title: 'Networking 1', units: 3, prerequisite: 'CS201' },
+  {
+    id: 's4',
+    code: 'CS204',
+    title: 'Networking 1',
+    units: 3,
+    prerequisite: 'CS201',
+  },
   { id: 's5', code: 'CS205', title: 'Object-Oriented Programming', units: 3 },
-  { id: 's6', code: 'CS206', title: 'Database Management Systems', units: 3, prerequisite: 'CS202' },
+  {
+    id: 's6',
+    code: 'CS206',
+    title: 'Database Management Systems',
+    units: 3,
+    prerequisite: 'CS202',
+  },
   { id: 's7', code: 'GE101', title: 'English Communication', units: 3 },
-  { id: 's8', code: 'GE102', title: 'Filipino sa Iba\'t Ibang Disiplina', units: 3 },
-  { id: 's9', code: 'GE103', title: 'Mathematics in the Modern World', units: 3 },
-  { id: 's10', code: 'GE104', title: 'Readings in Philippine History', units: 3 },
+  {
+    id: 's8',
+    code: 'GE102',
+    title: "Filipino sa Iba't Ibang Disiplina",
+    units: 3,
+  },
+  {
+    id: 's9',
+    code: 'GE103',
+    title: 'Mathematics in the Modern World',
+    units: 3,
+  },
+  {
+    id: 's10',
+    code: 'GE104',
+    title: 'Readings in Philippine History',
+    units: 3,
+  },
   { id: 's11', code: 'BS201', title: 'Principles of Management', units: 3 },
   { id: 's12', code: 'BS202', title: 'Financial Accounting', units: 3 },
   { id: 's13', code: 'BS203', title: 'Marketing Management', units: 3 },
@@ -351,7 +379,8 @@ export const enrollments: Enrollment[] = [
     ],
     totalUnits: 12,
     status: 'Rejected',
-    remarks: 'Incomplete requirements. Please submit your medical certificate and Form 137 before resubmitting.',
+    remarks:
+      'Incomplete requirements. Please submit your medical certificate and Form 137 before resubmitting.',
     submittedDate: '2024-09-25',
     hasPrerequisiteConcerns: false,
   },
@@ -690,7 +719,8 @@ export const announcements: Announcement[] = [
     id: 'an1',
     title: 'Enrollment for 2nd Semester Now Open',
     category: 'Enrollment',
-    message: 'Enrollment for the 2nd Semester of AY 2024-2025 is now open. Please proceed to the enrollment portal to select your subjects. Make sure all prerequisites are met before submitting.',
+    message:
+      'Enrollment for the 2nd Semester of AY 2024-2025 is now open. Please proceed to the enrollment portal to select your subjects. Make sure all prerequisites are met before submitting.',
     targetAudience: 'All Students',
     targetValue: 'All Students',
     status: 'Published',
@@ -702,7 +732,8 @@ export const announcements: Announcement[] = [
     id: 'an2',
     title: 'Midterm Examination Schedule',
     category: 'Academic',
-    message: 'Midterm examinations will be held from October 14 to October 18. Please check your respective class schedules for room assignments and time slots.',
+    message:
+      'Midterm examinations will be held from October 14 to October 18. Please check your respective class schedules for room assignments and time slots.',
     targetAudience: 'All Students',
     targetValue: 'All Students',
     status: 'Published',
@@ -714,7 +745,8 @@ export const announcements: Announcement[] = [
     id: 'an3',
     title: 'BSIT 3A - Submit Project Proposals',
     category: 'Academic',
-    message: 'All BSIT 3A students must submit their capstone project proposals by October 10. Late submissions will not be accepted.',
+    message:
+      'All BSIT 3A students must submit their capstone project proposals by October 10. Late submissions will not be accepted.',
     targetAudience: 'Specific Section',
     targetValue: 'BSIT 3A',
     status: 'Published',
@@ -726,7 +758,8 @@ export const announcements: Announcement[] = [
     id: 'an4',
     title: 'University Foundation Day Celebration',
     category: 'Event',
-    message: 'Join us in celebrating the University Foundation Day on October 20. There will be activities, performances, and food booths. Classes are suspended for the day.',
+    message:
+      'Join us in celebrating the University Foundation Day on October 20. There will be activities, performances, and food booths. Classes are suspended for the day.',
     targetAudience: 'All Students',
     targetValue: 'All Students',
     status: 'Published',
@@ -738,7 +771,8 @@ export const announcements: Announcement[] = [
     id: 'an5',
     title: 'BSBA - Guest Lecture on Financial Markets',
     category: 'Event',
-    message: 'A guest lecture on current trends in financial markets will be held on October 15 at the Main Auditorium. All BSBA students are encouraged to attend.',
+    message:
+      'A guest lecture on current trends in financial markets will be held on October 15 at the Main Auditorium. All BSBA students are encouraged to attend.',
     targetAudience: 'Specific Program',
     targetValue: 'BSBA',
     status: 'Draft',
@@ -750,7 +784,8 @@ export const announcements: Announcement[] = [
     id: 'an6',
     title: 'System Maintenance Notice',
     category: 'Urgent',
-    message: 'The enrollment system will be undergoing maintenance on October 5 from 10:00 PM to 2:00 AM. Please save your work before the scheduled downtime.',
+    message:
+      'The enrollment system will be undergoing maintenance on October 5 from 10:00 PM to 2:00 AM. Please save your work before the scheduled downtime.',
     targetAudience: 'All Students',
     targetValue: 'All Students',
     status: 'Draft',
@@ -770,7 +805,8 @@ export const supportTickets: SupportTicket[] = [
     studentNumber: '2024-00103',
     category: 'Enrollment',
     subject: 'Cannot select Networking 1',
-    message: 'I am trying to enroll in Networking 1 but the system says I have not met the prerequisite. I already passed Data Structures last semester. Can you please check?',
+    message:
+      'I am trying to enroll in Networking 1 but the system says I have not met the prerequisite. I already passed Data Structures last semester. Can you please check?',
     status: 'Open',
     dateCreated: '2024-10-01',
     dateUpdated: '2024-10-01',
@@ -783,7 +819,8 @@ export const supportTickets: SupportTicket[] = [
     studentNumber: '2024-00104',
     category: 'Grades',
     subject: 'Midterm grade discrepancy',
-    message: 'My midterm grade for Data Structures shows 2.5 but I believe it should be higher based on my exam scores. Could you please review my grade?',
+    message:
+      'My midterm grade for Data Structures shows 2.5 but I believe it should be higher based on my exam scores. Could you please review my grade?',
     status: 'In Progress',
     dateCreated: '2024-09-29',
     dateUpdated: '2024-10-01',
@@ -791,7 +828,8 @@ export const supportTickets: SupportTicket[] = [
       {
         id: 'r1',
         author: 'Admin',
-        message: 'Hi Maria, we are currently reviewing your exam scores with the subject instructor. We will get back to you within 2-3 business days.',
+        message:
+          'Hi Maria, we are currently reviewing your exam scores with the subject instructor. We will get back to you within 2-3 business days.',
         timestamp: '2024-10-01',
         isAdmin: true,
       },
@@ -804,7 +842,8 @@ export const supportTickets: SupportTicket[] = [
     studentNumber: '2024-00105',
     category: 'Technical',
     subject: 'Cannot log in to student portal',
-    message: 'I have been trying to log in for the past two days but I keep getting an error message saying "Invalid credentials" even though I am using the correct password.',
+    message:
+      'I have been trying to log in for the past two days but I keep getting an error message saying "Invalid credentials" even though I am using the correct password.',
     status: 'Open',
     dateCreated: '2024-10-02',
     dateUpdated: '2024-10-02',
@@ -817,7 +856,8 @@ export const supportTickets: SupportTicket[] = [
     studentNumber: '2024-00106',
     category: 'General',
     subject: 'Request for certificate of enrollment',
-    message: 'I need a certificate of enrollment for my scholarship application. Where can I request this and how long does it take to process?',
+    message:
+      'I need a certificate of enrollment for my scholarship application. Where can I request this and how long does it take to process?',
     status: 'Resolved',
     dateCreated: '2024-09-25',
     dateUpdated: '2024-09-26',
@@ -825,7 +865,8 @@ export const supportTickets: SupportTicket[] = [
       {
         id: 'r2',
         author: 'Admin',
-        message: 'Hi Andrea, you can request a certificate of enrollment at the Registrar\'s Office. Processing takes 1-2 business days. We have already processed your request and you can claim it today.',
+        message:
+          "Hi Andrea, you can request a certificate of enrollment at the Registrar's Office. Processing takes 1-2 business days. We have already processed your request and you can claim it today.",
         timestamp: '2024-09-26',
         isAdmin: true,
       },
@@ -845,7 +886,8 @@ export const supportTickets: SupportTicket[] = [
     studentNumber: '2024-00109',
     category: 'Enrollment',
     subject: 'Enrollment rejection clarification',
-    message: 'My enrollment was rejected due to incomplete requirements. I have already submitted my medical certificate and Form 137. Can I resubmit my enrollment?',
+    message:
+      'My enrollment was rejected due to incomplete requirements. I have already submitted my medical certificate and Form 137. Can I resubmit my enrollment?',
     status: 'In Progress',
     dateCreated: '2024-09-28',
     dateUpdated: '2024-09-30',
@@ -853,7 +895,8 @@ export const supportTickets: SupportTicket[] = [
       {
         id: 'r4',
         author: 'Admin',
-        message: 'Hi Ryan, we have received your medical certificate and Form 137. We are currently verifying the documents. Once verified, we will reopen your enrollment.',
+        message:
+          'Hi Ryan, we have received your medical certificate and Form 137. We are currently verifying the documents. Once verified, we will reopen your enrollment.',
         timestamp: '2024-09-30',
         isAdmin: true,
       },
@@ -866,7 +909,8 @@ export const supportTickets: SupportTicket[] = [
     studentNumber: '2024-00108',
     category: 'Grades',
     subject: 'Request for transcript of records',
-    message: 'I am graduating this semester and I need my transcript of records for my job application. Is it possible to get an advance copy?',
+    message:
+      'I am graduating this semester and I need my transcript of records for my job application. Is it possible to get an advance copy?',
     status: 'Open',
     dateCreated: '2024-10-02',
     dateUpdated: '2024-10-02',
@@ -889,52 +933,154 @@ export const initialSettings: SystemSettings = {
 // ─── Activity Feed ───────────────────────────────────────────────────
 
 export const activityLogs: ActivityLog[] = [
-  { id: 'a1', action: 'Approved enrollment for Andrea Lim (BSBA 2A)', actor: 'Admin', timestamp: '2024-10-02 14:30', type: 'enrollment' },
-  { id: 'a2', action: 'Published grades for Data Structures - BSIT 3A', actor: 'Admin', timestamp: '2024-10-02 13:15', type: 'grade' },
-  { id: 'a3', action: 'Created announcement: Enrollment for 2nd Semester Now Open', actor: 'Admin', timestamp: '2024-10-01 09:00', type: 'announcement' },
-  { id: 'a4', action: 'Replied to ticket TKT-2024-002 from Maria Clara Reyes', actor: 'Admin', timestamp: '2024-10-01 10:30', type: 'ticket' },
-  { id: 'a5', action: 'Added new student: Carlos Dela Cruz (BSEd 1A)', actor: 'Admin', timestamp: '2024-10-01 08:15', type: 'student' },
-  { id: 'a6', action: 'Updated class schedule: Web Systems moved to Rm 401', actor: 'Admin', timestamp: '2024-09-30 15:45', type: 'schedule' },
-  { id: 'a7', action: 'Rejected enrollment for Ryan Gomez (BSIT 1A) - Incomplete requirements', actor: 'Admin', timestamp: '2024-09-30 11:20', type: 'enrollment' },
-  { id: 'a8', action: 'Updated system settings: Enrollment opened for 1st Semester', actor: 'Admin', timestamp: '2024-09-28 07:00', type: 'settings' },
+  {
+    id: 'a1',
+    action: 'Approved enrollment for Andrea Lim (BSBA 2A)',
+    actor: 'Admin',
+    timestamp: '2024-10-02 14:30',
+    type: 'enrollment',
+  },
+  {
+    id: 'a2',
+    action: 'Published grades for Data Structures - BSIT 3A',
+    actor: 'Admin',
+    timestamp: '2024-10-02 13:15',
+    type: 'grade',
+  },
+  {
+    id: 'a3',
+    action: 'Created announcement: Enrollment for 2nd Semester Now Open',
+    actor: 'Admin',
+    timestamp: '2024-10-01 09:00',
+    type: 'announcement',
+  },
+  {
+    id: 'a4',
+    action: 'Replied to ticket TKT-2024-002 from Maria Clara Reyes',
+    actor: 'Admin',
+    timestamp: '2024-10-01 10:30',
+    type: 'ticket',
+  },
+  {
+    id: 'a5',
+    action: 'Added new student: Carlos Dela Cruz (BSEd 1A)',
+    actor: 'Admin',
+    timestamp: '2024-10-01 08:15',
+    type: 'student',
+  },
+  {
+    id: 'a6',
+    action: 'Updated class schedule: Web Systems moved to Rm 401',
+    actor: 'Admin',
+    timestamp: '2024-09-30 15:45',
+    type: 'schedule',
+  },
+  {
+    id: 'a7',
+    action:
+      'Rejected enrollment for Ryan Gomez (BSIT 1A) - Incomplete requirements',
+    actor: 'Admin',
+    timestamp: '2024-09-30 11:20',
+    type: 'enrollment',
+  },
+  {
+    id: 'a8',
+    action: 'Updated system settings: Enrollment opened for 1st Semester',
+    actor: 'Admin',
+    timestamp: '2024-09-28 07:00',
+    type: 'settings',
+  },
 ];
 
 // ─── Notifications ───────────────────────────────────────────────────
 
 export const notifications: Notification[] = [
-  { id: 'n1', title: 'New Enrollment Request', description: 'Pedro Santos submitted an enrollment request', timestamp: '2024-10-01', read: false, type: 'enrollment' },
-  { id: 'n2', title: 'New Support Ticket', description: 'John Michael Cruz opened a technical ticket', timestamp: '2024-10-02', read: false, type: 'ticket' },
-  { id: 'n3', title: 'New Enrollment Request', description: 'Hannah Ong submitted an enrollment request', timestamp: '2024-10-02', read: false, type: 'enrollment' },
-  { id: 'n4', title: 'New Support Ticket', description: 'Sophia Mae Torres opened a grades ticket', timestamp: '2024-10-02', read: true, type: 'ticket' },
-];
-
-// ─── Dashboard Chart Data ────────────────────────────────────────────
-
-export const enrollmentStatusData = [
-  { name: 'Pending', value: 4, color: 'hsl(38, 92%, 50%)' },
-  { name: 'Approved', value: 3, color: 'hsl(142, 71%, 45%)' },
-  { name: 'Rejected', value: 1, color: 'hsl(0, 84%, 60%)' },
-];
-
-export const studentsByProgramData = [
-  { name: 'BSIT', students: 7 },
-  { name: 'BSBA', students: 3 },
-  { name: 'BSEd', students: 3 },
-];
-
-export const ticketStatusData = [
-  { name: 'Open', value: 3, color: 'hsl(217, 91%, 50%)' },
-  { name: 'In Progress', value: 2, color: 'hsl(38, 92%, 50%)' },
-  { name: 'Resolved', value: 1, color: 'hsl(142, 71%, 45%)' },
+  {
+    id: 'n1',
+    title: 'New Enrollment Request',
+    description: 'Pedro Santos submitted an enrollment request',
+    timestamp: '2024-10-01',
+    read: false,
+    type: 'enrollment',
+  },
+  {
+    id: 'n2',
+    title: 'New Support Ticket',
+    description: 'John Michael Cruz opened a technical ticket',
+    timestamp: '2024-10-02',
+    read: false,
+    type: 'ticket',
+  },
+  {
+    id: 'n3',
+    title: 'New Enrollment Request',
+    description: 'Hannah Ong submitted an enrollment request',
+    timestamp: '2024-10-02',
+    read: false,
+    type: 'enrollment',
+  },
+  {
+    id: 'n4',
+    title: 'New Support Ticket',
+    description: 'Sophia Mae Torres opened a grades ticket',
+    timestamp: '2024-10-02',
+    read: true,
+    type: 'ticket',
+  },
 ];
 
 // ─── Filter Options ──────────────────────────────────────────────────
 
 export const programOptions: string[] = ['BSIT', 'BSBA', 'BSEd'];
-export const yearLevelOptions: string[] = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
-export const sectionOptions: string[] = ['BSIT 1A', 'BSIT 2A', 'BSIT 3A', 'BSIT 3B', 'BSIT 4A', 'BSBA 2A', 'BSBA 3A', 'BSEd 1A', 'BSEd 2A', 'BSEd 4A'];
-export const instructorOptions: string[] = ['Prof. Antonio Rivera', 'Prof. Maria Santos', 'Prof. Juan Dela Cruz', 'Prof. Cristina Lim', 'Prof. Rosario Mendoza'];
-export const dayOptions: string[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-export const ticketCategoryOptions: string[] = ['Enrollment', 'Grades', 'Technical', 'General'];
-export const announcementCategoryOptions: string[] = ['Academic', 'Enrollment', 'Event', 'General', 'Urgent'];
-export const targetAudienceOptions: string[] = ['All Students', 'Specific Program', 'Specific Year Level', 'Specific Section'];
+export const yearLevelOptions: YearLevel[] = [
+  '1st Year',
+  '2nd Year',
+  '3rd Year',
+  '4th Year',
+];
+export const sectionOptions: string[] = [
+  'BSIT 1A',
+  'BSIT 2A',
+  'BSIT 3A',
+  'BSIT 3B',
+  'BSIT 4A',
+  'BSBA 2A',
+  'BSBA 3A',
+  'BSEd 1A',
+  'BSEd 2A',
+  'BSEd 4A',
+];
+export const instructorOptions: string[] = [
+  'Prof. Antonio Rivera',
+  'Prof. Maria Santos',
+  'Prof. Juan Dela Cruz',
+  'Prof. Cristina Lim',
+  'Prof. Rosario Mendoza',
+];
+export const dayOptions: string[] = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+export const ticketCategoryOptions: string[] = [
+  'Enrollment',
+  'Grades',
+  'Technical',
+  'General',
+];
+export const announcementCategoryOptions: string[] = [
+  'Academic',
+  'Enrollment',
+  'Event',
+  'General',
+  'Urgent',
+];
+export const targetAudienceOptions: string[] = [
+  'All Students',
+  'Specific Program',
+  'Specific Year Level',
+  'Specific Section',
+];

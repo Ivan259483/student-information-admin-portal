@@ -59,11 +59,15 @@ interface StatusBadgeProps {
   showDot?: boolean;
 }
 
-export function StatusBadge({ status, className, showDot = false }: StatusBadgeProps) {
+export function StatusBadge({
+  status,
+  className,
+  showDot = false,
+}: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-xs font-semibold capitalize',
+        'inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-xs font-semibold capitalize',
         statusStyles[status],
         className
       )}

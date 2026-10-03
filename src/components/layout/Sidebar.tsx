@@ -1,17 +1,17 @@
-import { NavLink } from 'react-router-dom';
+import { useAdminData } from '@/data/context';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard,
-  Users,
+  CalendarDays,
   ClipboardCheck,
   GraduationCap,
-  CalendarDays,
-  Megaphone,
+  LayoutDashboard,
   LifeBuoy,
-  Settings,
   GraduationCap as LogoIcon,
-  X,
+  Megaphone,
+  Settings,
+  Users,
 } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -30,6 +30,9 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onNavigate, className }: SidebarProps) {
+  const {
+    state: { settings },
+  } = useAdminData();
   return (
     <div className={cn('flex h-full flex-col bg-white', className)}>
       {/* Logo / Brand */}
@@ -38,21 +41,18 @@ export function Sidebar({ onNavigate, className }: SidebarProps) {
           <LogoIcon className="h-5 w-5" />
         </div>
         <div className="flex-1">
-          <p className="text-sm font-bold leading-tight text-foreground">University Admin</p>
+          <p className="text-sm font-bold leading-tight text-foreground">
+            University Admin
+          </p>
           <p className="text-xs text-muted-foreground">Portal</p>
         </div>
-        {onNavigate && (
-          <button
-            onClick={onNavigate}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground lg:hidden"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-thin px-3 py-4">
+      <nav
+        aria-label="Admin navigation"
+        className="flex-1 space-y-1 overflow-y-auto scrollbar-thin px-3 py-4"
+      >
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -79,8 +79,12 @@ export function Sidebar({ onNavigate, className }: SidebarProps) {
 
       {/* Footer */}
       <div className="border-t border-border px-6 py-4">
-        <p className="text-xs text-muted-foreground">AY 2024-2025</p>
-        <p className="text-xs font-medium text-foreground">1st Semester</p>
+        <p className="text-xs text-muted-foreground">
+          AY {settings.academicYear}
+        </p>
+        <p className="text-xs font-medium text-foreground">
+          {settings.semester}
+        </p>
       </div>
     </div>
   );

@@ -15,11 +15,7 @@ export type TicketCategory = 'Enrollment' | 'Grades' | 'Technical' | 'General';
 export type AnnouncementStatus = 'Published' | 'Draft';
 
 export type AnnouncementCategory =
-  | 'Academic'
-  | 'Enrollment'
-  | 'Event'
-  | 'General'
-  | 'Urgent';
+  'Academic' | 'Enrollment' | 'Event' | 'General' | 'Urgent';
 
 export type TargetAudience =
   | 'All Students'
@@ -32,12 +28,7 @@ export type GradeRemark = 'Passed' | 'Failed' | 'Incomplete';
 export type PublishStatus = 'Published' | 'Draft';
 
 export type DayOfWeek =
-  | 'Monday'
-  | 'Tuesday'
-  | 'Wednesday'
-  | 'Thursday'
-  | 'Friday'
-  | 'Saturday';
+  'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
 
 export interface Student {
   id: string;
@@ -82,6 +73,7 @@ export interface Enrollment {
   remarks: string;
   submittedDate: string;
   hasPrerequisiteConcerns: boolean;
+  prerequisiteOverride?: boolean;
 }
 
 export interface GradeRecord {
@@ -153,7 +145,7 @@ export interface SupportTicket {
 
 export interface SystemSettings {
   academicYear: string;
-  semester: string;
+  semester: '1st Semester' | '2nd Semester' | 'Summer';
   enrollmentOpen: boolean;
   gradeEncodingOpen: boolean;
   notifyNewEnrollments: boolean;
@@ -166,7 +158,14 @@ export interface ActivityLog {
   action: string;
   actor: string;
   timestamp: string;
-  type: 'enrollment' | 'grade' | 'announcement' | 'ticket' | 'student' | 'schedule' | 'settings';
+  type:
+    | 'enrollment'
+    | 'grade'
+    | 'announcement'
+    | 'ticket'
+    | 'student'
+    | 'schedule'
+    | 'settings';
 }
 
 export interface Notification {
@@ -176,4 +175,5 @@ export interface Notification {
   timestamp: string;
   read: boolean;
   type: 'enrollment' | 'ticket' | 'announcement' | 'grade';
+  href?: string;
 }

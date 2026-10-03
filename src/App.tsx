@@ -1,34 +1,80 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Toaster as SonnerToaster } from '@/components/ui/sonner';
+import { DemoSessionPage, RequireAdmin, SessionProvider } from '@/auth/session';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { StudentDirectoryPage } from '@/pages/StudentDirectoryPage';
-import { EnrollmentPage } from '@/pages/EnrollmentPage';
-import { AcademicRecordsPage } from '@/pages/AcademicRecordsPage';
-import { ClassSchedulesPage } from '@/pages/ClassSchedulesPage';
-import { AnnouncementsPage } from '@/pages/AnnouncementsPage';
-import { SupportHelpdeskPage } from '@/pages/SupportHelpdeskPage';
-import { SettingsPage } from '@/pages/SettingsPage';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
+import { PageLoading } from '@/components/shared/PageLoading';
+import { Toaster } from '@/components/ui/sonner';
+import { AdminProvider } from '@/data/store';
+import { NotFoundPage } from '@/pages/NotFoundPage';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import './App.css';
-
-function App() {
+const Dashboard = lazy(() =>
+  import('@/pages/DashboardPage').then((m) => ({ default: m.DashboardPage }))
+);
+const Students = lazy(() =>
+  import('@/pages/StudentDirectoryPage').then((m) => ({
+    default: m.StudentDirectoryPage,
+  }))
+);
+const Enrollment = lazy(() =>
+  import('@/pages/EnrollmentPage').then((m) => ({ default: m.EnrollmentPage }))
+);
+const Grades = lazy(() =>
+  import('@/pages/AcademicRecordsPage').then((m) => ({
+    default: m.AcademicRecordsPage,
+  }))
+);
+const Schedules = lazy(() =>
+  import('@/pages/ClassSchedulesPage').then((m) => ({
+    default: m.ClassSchedulesPage,
+  }))
+);
+const Announcements = lazy(() =>
+  import('@/pages/AnnouncementsPage').then((m) => ({
+    default: m.AnnouncementsPage,
+  }))
+);
+const Helpdesk = lazy(() =>
+  import('@/pages/SupportHelpdeskPage').then((m) => ({
+    default: m.SupportHelpdeskPage,
+  }))
+);
+const Settings = lazy(() =>
+  import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage }))
+);
+export function AdminRoutes() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <Routes>
+      <Route path="/demo-session" element={<DemoSessionPage />} />
+      <Route element={<RequireAdmin />}>
         <Route element={<AdminLayout />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="/students" element={<StudentDirectoryPage />} />
-          <Route path="/enrollment" element={<EnrollmentPage />} />
-          <Route path="/grades" element={<AcademicRecordsPage />} />
-          <Route path="/schedules" element={<ClassSchedulesPage />} />
-          <Route path="/announcements" element={<AnnouncementsPage />} />
-          <Route path="/helpdesk" element={<SupportHelpdeskPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route index element={<Dashboard />} />
+          <Route path="students" element={<Students />} />
+          <Route path="enrollment" element={<Enrollment />} />
+          <Route path="grades" element={<Grades />} />
+          <Route path="schedules" element={<Schedules />} />
+          <Route path="announcements" element={<Announcements />} />
+          <Route path="helpdesk" element={<Helpdesk />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
-      </Routes>
-      <SonnerToaster position="top-right" richColors />
-    </BrowserRouter>
+      </Route>
+    </Routes>
   );
 }
-
-export default App;
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <BrowserRouter>
+        <SessionProvider>
+          <AdminProvider>
+            <Suspense fallback={<PageLoading />}>
+              <AdminRoutes />
+            </Suspense>
+          </AdminProvider>
+          <Toaster position="top-right" richColors />
+        </SessionProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
+  );
+}

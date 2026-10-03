@@ -1,29 +1,19 @@
-import { useState, useMemo } from 'react';
-import {
-  Search,
-  Pencil,
-  Upload,
-  FileText,
-  Printer,
-  GraduationCap,
-} from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { PrintableDocument } from '@/components/shared/PrintableDocument';
+import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -32,37 +22,54 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
-import { StatusBadge } from '@/components/shared/StatusBadge';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { EmptyState } from '@/components/shared/EmptyState';
-import { gradeRecords as initialGrades } from '@/data/mock-data';
-import type { GradeRecord, GradeRemark } from '@/types';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useAdminCollection, useAdminData } from '@/data/context';
+import { usePageIntent } from '@/hooks/use-page-intent';
+import {
+  calculateRemark,
+  canPublishGrade,
+  parseGrade,
+  periodLabel,
+  transcriptSummary,
+} from '@/lib/domain';
+import type { GradeRecord } from '@/types';
+import {
+  FileText,
+  GraduationCap,
+  Pencil,
+  Printer,
+  Search,
+  Upload,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-
-function calculateRemark(finalGrade: number | null): GradeRemark {
-  if (finalGrade === null) return 'Incomplete';
-  if (finalGrade <= 3.0) return 'Passed';
-  return 'Failed';
-}
 
 export function AcademicRecordsPage() {
-  const [grades, setGrades] = useState<GradeRecord[]>(initialGrades);
+  const {
+    state: { settings },
+  } = useAdminData();
+  const intent = usePageIntent();
+  const [gradeError, setGradeError] = useState('');
+  const [chooseGrade, setChooseGrade] = useState(intent.action === 'encode');
+  const [grades, setGrades] = useAdminCollection('grades');
   const [search, setSearch] = useState('');
   const [semesterFilter, setSemesterFilter] = useState('all');
   const [publishFilter, setPublishFilter] = useState('all');
   const [encodeGrade, setEncodeGrade] = useState<GradeRecord | null>(null);
-  const [transcriptStudent, setTranscriptStudent] = useState<string | null>(null);
+  const [transcriptStudent, setTranscriptStudent] = useState<string | null>(
+    null
+  );
   const [midterm, setMidterm] = useState('');
   const [finalGrade, setFinalGrade] = useState('');
+  useEffect(() => {
+    if (intent.action === 'encode') setChooseGrade(true);
+  }, [intent.action]);
 
   const filtered = useMemo(() => {
     return grades.filter((g) => {
@@ -70,36 +77,72 @@ export function AcademicRecordsPage() {
         g.studentName.toLowerCase().includes(search.toLowerCase()) ||
         g.subjectTitle.toLowerCase().includes(search.toLowerCase()) ||
         g.section.toLowerCase().includes(search.toLowerCase());
-      const matchSemester = semesterFilter === 'all' || g.semester === semesterFilter;
-      const matchPublish = publishFilter === 'all' || g.publishStatus === publishFilter;
+      const matchSemester =
+        semesterFilter === 'all' || g.semester === semesterFilter;
+      const matchPublish =
+        publishFilter === 'all' || g.publishStatus === publishFilter;
       return matchSearch && matchSemester && matchPublish;
     });
   }, [grades, search, semesterFilter, publishFilter]);
 
   const handleSaveGrade = () => {
     if (!encodeGrade) return;
-    const midtermNum = midterm ? parseFloat(midterm) : null;
-    const finalNum = finalGrade ? parseFloat(finalGrade) : null;
+    let midtermNum: number | null, finalNum: number | null;
+    try {
+      midtermNum = parseGrade(midterm);
+      finalNum = parseGrade(finalGrade);
+      setGradeError('');
+    } catch (error) {
+      setGradeError((error as Error).message);
+      return;
+    }
     const remark = calculateRemark(finalNum);
 
-    setGrades((prev) =>
-      prev.map((g) =>
-        g.id === encodeGrade.id
-          ? { ...g, midtermGrade: midtermNum, finalGrade: finalNum, numericalGrade: finalNum, remark, publishStatus: 'Draft' }
-          : g
+    if (
+      !setGrades(
+        (prev) =>
+          prev.map((g) =>
+            g.id === encodeGrade.id
+              ? {
+                  ...g,
+                  midtermGrade: midtermNum,
+                  finalGrade: finalNum,
+                  numericalGrade: finalNum,
+                  remark,
+                  publishStatus: 'Draft',
+                }
+              : g
+          ),
+        `Encoded grade for ${encodeGrade.studentName}: ${encodeGrade.subjectTitle}`
       )
-    );
-    toast.success('Grade saved', { description: `${encodeGrade.subjectTitle} grade for ${encodeGrade.studentName} has been encoded.` });
+    )
+      return;
+    toast.success('Grade saved', {
+      description: `${encodeGrade.subjectTitle} grade for ${encodeGrade.studentName} has been encoded.`,
+    });
     setEncodeGrade(null);
     setMidterm('');
     setFinalGrade('');
   };
 
   const handlePublish = (grade: GradeRecord) => {
-    setGrades((prev) =>
-      prev.map((g) => (g.id === grade.id ? { ...g, publishStatus: 'Published' } : g))
-    );
-    toast.success('Grade published', { description: `${grade.subjectTitle} grade for ${grade.studentName} is now visible to students.` });
+    if (!canPublishGrade(grade)) {
+      toast.error('A valid final grade is required before publication.');
+      return;
+    }
+    if (
+      !setGrades(
+        (prev) =>
+          prev.map((g) =>
+            g.id === grade.id ? { ...g, publishStatus: 'Published' } : g
+          ),
+        `Published grade for ${grade.studentName}: ${grade.subjectTitle}`
+      )
+    )
+      return;
+    toast.success('Grade published', {
+      description: `${grade.subjectTitle} grade for ${grade.studentName} has been marked as published.`,
+    });
   };
 
   const handlePrint = () => {
@@ -107,40 +150,43 @@ export function AcademicRecordsPage() {
   };
 
   const openEncode = (grade: GradeRecord) => {
+    setGradeError('');
     setEncodeGrade(grade);
     setMidterm(grade.midtermGrade !== null ? String(grade.midtermGrade) : '');
     setFinalGrade(grade.finalGrade !== null ? String(grade.finalGrade) : '');
   };
 
+  let previewRemark: ReturnType<typeof calculateRemark> | 'Invalid grade';
+  try {
+    previewRemark = calculateRemark(parseGrade(finalGrade));
+  } catch {
+    previewRemark = 'Invalid grade';
+  }
+
   // Transcript data
-  const transcriptGrades = transcriptStudent
-    ? grades.filter((g) => g.studentId === transcriptStudent)
-    : [];
+  const summary = transcriptSummary(
+    grades.filter((g) => g.studentId === transcriptStudent)
+  );
+  const transcriptGrades = summary.records;
   const transcriptName = transcriptGrades[0]?.studentName || '';
   const transcriptNumber = transcriptGrades[0]?.studentNumber || '';
-  const totalUnits = transcriptGrades.reduce((sum, g) => sum + g.units, 0);
-  const passedUnits = transcriptGrades.filter((g) => g.remark === 'Passed').reduce((sum, g) => sum + g.units, 0);
-  const gpa = transcriptGrades.filter((g) => g.remark === 'Passed' && g.numericalGrade).length > 0
-    ? (transcriptGrades.filter((g) => g.remark === 'Passed' && g.numericalGrade).reduce((sum, g) => sum + (g.numericalGrade! * g.units), 0) / passedUnits).toFixed(2)
-    : 'N/A';
+  const totalUnits = summary.completedUnits;
+  const passedUnits = summary.passedUnits;
+  const gpa = summary.gpa?.toFixed(2) ?? 'N/A';
 
   // Summary stats
-  const publishedCount = grades.filter((g) => g.publishStatus === 'Published').length;
+  const publishedCount = grades.filter(
+    (g) => g.publishStatus === 'Published'
+  ).length;
   const draftCount = grades.filter((g) => g.publishStatus === 'Draft').length;
   const passedCount = grades.filter((g) => g.remark === 'Passed').length;
   const failedCount = grades.filter((g) => g.remark === 'Failed').length;
-
-  const studentsWithGrades = useMemo(() => {
-    const map = new Map<string, { name: string; number: string }>();
-    grades.forEach((g) => map.set(g.studentId, { name: g.studentName, number: g.studentNumber }));
-    return Array.from(map.entries()).map(([id, info]) => ({ id, ...info }));
-  }, [grades]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Academic Records"
-        description="Manage and publish student grades"
+        description={`${periodLabel(settings)} · Grade encoding ${settings.gradeEncodingOpen ? 'enabled' : 'disabled'}`}
         breadcrumbs={[{ label: 'Admin' }, { label: 'Academic Records' }]}
       />
 
@@ -149,25 +195,34 @@ export function AcademicRecordsPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Published Grades</p>
-            <p className="mt-1 text-2xl font-bold text-green-600">{publishedCount}</p>
+            <p className="mt-1 text-2xl font-bold text-green-600">
+              {publishedCount}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Draft Grades</p>
-            <p className="mt-1 text-2xl font-bold text-amber-600">{draftCount}</p>
+            <p className="mt-1 text-2xl font-bold text-amber-600">
+              {draftCount}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Passed</p>
-            <p className="mt-1 text-2xl font-bold text-green-600">{passedCount}</p>
+            <p className="mt-1 text-2xl font-bold text-green-600">
+              {passedCount}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Failed / Incomplete</p>
-            <p className="mt-1 text-2xl font-bold text-red-600">{failedCount + grades.filter((g) => g.remark === 'Incomplete').length}</p>
+            <p className="mt-1 text-2xl font-bold text-red-600">
+              {failedCount +
+                grades.filter((g) => g.remark === 'Incomplete').length}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -179,6 +234,7 @@ export function AcademicRecordsPage() {
             <div className="relative flex-1 sm:min-w-[240px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                aria-label="Search by student, subject, or section..."
                 placeholder="Search by student, subject, or section..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -186,17 +242,24 @@ export function AcademicRecordsPage() {
               />
             </div>
             <Select value={semesterFilter} onValueChange={setSemesterFilter}>
-              <SelectTrigger className="w-full sm:w-[160px]">
+              <SelectTrigger
+                aria-label="Semester"
+                className="w-full sm:w-[160px]"
+              >
                 <SelectValue placeholder="Semester" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Semesters</SelectItem>
                 <SelectItem value="1st Semester">1st Semester</SelectItem>
                 <SelectItem value="2nd Semester">2nd Semester</SelectItem>
+                <SelectItem value="Summer">Summer</SelectItem>
               </SelectContent>
             </Select>
             <Select value={publishFilter} onValueChange={setPublishFilter}>
-              <SelectTrigger className="w-full sm:w-[160px]">
+              <SelectTrigger
+                aria-label="Status"
+                className="w-full sm:w-[160px]"
+              >
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -229,8 +292,12 @@ export function AcademicRecordsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="pl-6">Student</TableHead>
-                    <TableHead className="hidden md:table-cell">Subject</TableHead>
-                    <TableHead className="hidden lg:table-cell">Section</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Subject
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Section
+                    </TableHead>
                     <TableHead className="text-center">Midterm</TableHead>
                     <TableHead className="text-center">Final</TableHead>
                     <TableHead>Remark</TableHead>
@@ -242,29 +309,92 @@ export function AcademicRecordsPage() {
                   {filtered.map((grade) => (
                     <TableRow key={grade.id}>
                       <TableCell className="pl-6">
-                        <p className="text-sm font-medium text-foreground">{grade.studentName}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{grade.studentNumber}</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {grade.studentName}
+                        </p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {grade.studentNumber}
+                        </p>
+                        <p className="text-xs text-muted-foreground md:hidden">
+                          {grade.subjectTitle}
+                        </p>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
-                        <p className="text-sm text-foreground">{grade.subjectTitle}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{grade.subjectCode}</p>
+                        <p className="text-sm text-foreground">
+                          {grade.subjectTitle}
+                        </p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {grade.subjectCode}
+                        </p>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm">{grade.section}</TableCell>
-                      <TableCell className="text-center text-sm font-mono">{grade.midtermGrade !== null ? grade.midtermGrade.toFixed(2) : '-'}</TableCell>
-                      <TableCell className="text-center text-sm font-mono">{grade.finalGrade !== null ? grade.finalGrade.toFixed(2) : '-'}</TableCell>
-                      <TableCell><StatusBadge status={grade.remark} showDot /></TableCell>
-                      <TableCell><StatusBadge status={grade.publishStatus} /></TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm">
+                        {grade.section}
+                      </TableCell>
+                      <TableCell className="text-center text-sm font-mono">
+                        {grade.midtermGrade !== null
+                          ? grade.midtermGrade.toFixed(2)
+                          : '-'}
+                      </TableCell>
+                      <TableCell className="text-center text-sm font-mono">
+                        {grade.finalGrade !== null
+                          ? grade.finalGrade.toFixed(2)
+                          : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={grade.remark} showDot />
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={grade.publishStatus} />
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEncode(grade)}>
+                          <Button
+                            aria-label={`Encode ${grade.subjectTitle} for ${grade.studentName}`}
+                            disabled={!settings.gradeEncodingOpen}
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openEncode(grade)}
+                          >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           {grade.publishStatus === 'Draft' && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={() => handlePublish(grade)}>
+                            <Button
+                              aria-label={`Publish ${grade.subjectTitle} for ${grade.studentName}`}
+                              title={
+                                !canPublishGrade(grade)
+                                  ? 'A valid final grade is required'
+                                  : 'Publish grade'
+                              }
+                              disabled={
+                                !settings.gradeEncodingOpen ||
+                                !canPublishGrade(grade)
+                              }
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-green-600"
+                              onClick={() => handlePublish(grade)}
+                            >
                               <Upload className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTranscriptStudent(grade.studentId)}>
+                          <Button
+                            aria-label={`Transcript for ${grade.studentName}`}
+                            disabled={
+                              !grades.some(
+                                (g) =>
+                                  g.studentId === grade.studentId &&
+                                  g.publishStatus === 'Published' &&
+                                  canPublishGrade(g)
+                              )
+                            }
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() =>
+                              setTranscriptStudent(grade.studentId)
+                            }
+                          >
                             <FileText className="h-4 w-4" />
                           </Button>
                         </div>
@@ -279,7 +409,54 @@ export function AcademicRecordsPage() {
       </Card>
 
       {/* Encode Grade Modal */}
-      <Dialog open={!!encodeGrade} onOpenChange={(open) => { if (!open) { setEncodeGrade(null); setMidterm(''); setFinalGrade(''); } }}>
+      <Dialog
+        open={chooseGrade}
+        onOpenChange={(open) => {
+          setChooseGrade(open);
+          if (!open) intent.clearIntent();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select a grade to encode</DialogTitle>
+            <DialogDescription>
+              {settings.gradeEncodingOpen
+                ? 'Choose a student and subject.'
+                : 'Grade encoding is disabled. Enable it in Settings first.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {grades.map((g) => (
+              <Button
+                key={g.id}
+                disabled={!settings.gradeEncodingOpen}
+                variant="outline"
+                className="h-auto w-full justify-start whitespace-normal text-left"
+                onClick={() => {
+                  setChooseGrade(false);
+                  intent.clearIntent();
+                  openEncode(g);
+                }}
+              >
+                {g.studentName} · {g.subjectTitle}
+              </Button>
+            ))}
+            {!grades.length && (
+              <p>No grade records are available for encoding.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={!!encodeGrade}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEncodeGrade(null);
+            setMidterm('');
+            setFinalGrade('');
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           {encodeGrade && (
             <>
@@ -290,22 +467,32 @@ export function AcademicRecordsPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
+                {gradeError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {gradeError}
+                  </p>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-lg border border-border p-3">
                     <p className="text-xs text-muted-foreground">Student</p>
-                    <p className="mt-0.5 text-sm font-medium text-foreground">{encodeGrade.studentName}</p>
+                    <p className="mt-0.5 text-sm font-medium text-foreground">
+                      {encodeGrade.studentName}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-border p-3">
                     <p className="text-xs text-muted-foreground">Subject</p>
-                    <p className="mt-0.5 text-sm font-medium text-foreground">{encodeGrade.subjectTitle}</p>
+                    <p className="mt-0.5 text-sm font-medium text-foreground">
+                      {encodeGrade.subjectTitle}
+                    </p>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="midterm">Midterm Grade (1.00 - 5.00)</Label>
                   <Input
                     id="midterm"
-                    type="number"
-                    step="0.25"
+                    type="text"
+                    inputMode="decimal"
+                    step="0.01"
                     min="1"
                     max="5"
                     placeholder="e.g. 1.50"
@@ -317,8 +504,9 @@ export function AcademicRecordsPage() {
                   <Label htmlFor="final">Final Grade (1.00 - 5.00)</Label>
                   <Input
                     id="final"
-                    type="number"
-                    step="0.25"
+                    type="text"
+                    inputMode="decimal"
+                    step="0.01"
                     min="1"
                     max="5"
                     placeholder="e.g. 1.25"
@@ -327,25 +515,33 @@ export function AcademicRecordsPage() {
                   />
                 </div>
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
-                  <p className="text-xs text-muted-foreground">Auto-calculated Remark</p>
+                  <p className="text-xs text-muted-foreground">
+                    Auto-calculated Remark
+                  </p>
                   <div className="mt-1">
-                    <StatusBadge
-                      status={calculateRemark(finalGrade ? parseFloat(finalGrade) : null)}
-                      showDot
-                      className={cn(
-                        calculateRemark(finalGrade ? parseFloat(finalGrade) : null) === 'Passed' && 'border-green-200',
-                        calculateRemark(finalGrade ? parseFloat(finalGrade) : null) === 'Failed' && 'border-red-200',
-                        calculateRemark(finalGrade ? parseFloat(finalGrade) : null) === 'Incomplete' && 'border-amber-200',
-                      )}
-                    />
+                    {previewRemark === 'Invalid grade' ? (
+                      <p className="text-sm text-destructive">
+                        Enter a valid grade from 1.00 to 5.00.
+                      </p>
+                    ) : (
+                      <StatusBadge status={previewRemark} showDot />
+                    )}
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    1.00-3.00 = Passed · Above 3.00 = Failed · No final = Incomplete
+                    1.00-3.00 = Passed · Above 3.00 = Failed · No final =
+                    Incomplete
                   </p>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => { setEncodeGrade(null); setMidterm(''); setFinalGrade(''); }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEncodeGrade(null);
+                    setMidterm('');
+                    setFinalGrade('');
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button onClick={handleSaveGrade}>Save Grade</Button>
@@ -356,11 +552,14 @@ export function AcademicRecordsPage() {
       </Dialog>
 
       {/* Transcript Preview Modal */}
-      <Dialog open={!!transcriptStudent} onOpenChange={(open) => !open && setTranscriptStudent(null)}>
+      <Dialog
+        open={!!transcriptStudent}
+        onOpenChange={(open) => !open && setTranscriptStudent(null)}
+      >
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           {transcriptGrades.length > 0 && (
             <>
-              <div className="no-print flex items-center justify-between">
+              <div className="no-print flex flex-wrap gap-3 items-center justify-between pr-6">
                 <DialogHeader className="flex-1">
                   <DialogTitle>Transcript of Records</DialogTitle>
                   <DialogDescription>Printable preview</DialogDescription>
@@ -372,34 +571,43 @@ export function AcademicRecordsPage() {
               </div>
 
               {/* Printable Transcript */}
-              <div className="print-area rounded-lg border border-border p-8">
-                <div className="text-center mb-6">
-                  <h1 className="text-xl font-bold text-foreground">University Admin Portal</h1>
-                  <p className="text-sm text-muted-foreground">Office of the Registrar</p>
-                  <Separator className="my-3" />
-                  <h2 className="text-lg font-bold text-foreground">Transcript of Records</h2>
-                </div>
-
+              <PrintableDocument title="Transcript of Records">
                 <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
                   <div>
-                    <p className="text-xs text-muted-foreground">Student Name</p>
-                    <p className="font-semibold text-foreground">{transcriptName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Student Name
+                    </p>
+                    <p className="font-semibold text-foreground">
+                      {transcriptName}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Student Number</p>
-                    <p className="font-semibold text-foreground font-mono">{transcriptNumber}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Student Number
+                    </p>
+                    <p className="font-semibold text-foreground font-mono">
+                      {transcriptNumber}
+                    </p>
                   </div>
                 </div>
 
                 {/* Summary */}
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="rounded-lg border border-border p-3 text-center">
-                    <p className="text-xs text-muted-foreground">Total Units</p>
-                    <p className="text-lg font-bold text-foreground">{totalUnits}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Completed Units
+                    </p>
+                    <p className="text-lg font-bold text-foreground">
+                      {totalUnits}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-border p-3 text-center">
-                    <p className="text-xs text-muted-foreground">Units Passed</p>
-                    <p className="text-lg font-bold text-green-600">{passedUnits}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Units Passed
+                    </p>
+                    <p className="text-lg font-bold text-green-600">
+                      {passedUnits}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-border p-3 text-center">
                     <p className="text-xs text-muted-foreground">GPA</p>
@@ -410,30 +618,49 @@ export function AcademicRecordsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border">
-                      <TableHead className="text-xs font-semibold">Code</TableHead>
-                      <TableHead className="text-xs font-semibold">Subject</TableHead>
-                      <TableHead className="text-xs font-semibold text-center">Units</TableHead>
-                      <TableHead className="text-xs font-semibold text-center">Final Grade</TableHead>
-                      <TableHead className="text-xs font-semibold">Remark</TableHead>
+                      <TableHead className="text-xs font-semibold">
+                        Code
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold">
+                        Subject
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold text-center">
+                        Units
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold text-center">
+                        Final Grade
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold">
+                        Remark
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {transcriptGrades.map((g) => (
                       <TableRow key={g.id} className="border-border">
-                        <TableCell className="font-mono text-xs">{g.subjectCode}</TableCell>
-                        <TableCell className="text-xs">{g.subjectTitle}</TableCell>
-                        <TableCell className="text-xs text-center">{g.units}</TableCell>
-                        <TableCell className="text-xs text-center font-mono">{g.numericalGrade !== null ? g.numericalGrade.toFixed(2) : 'INC'}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {g.subjectCode}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {g.subjectTitle}
+                          <span className="block text-muted-foreground">
+                            {g.academicYear} · {g.semester}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-xs text-center">
+                          {g.units}
+                        </TableCell>
+                        <TableCell className="text-xs text-center font-mono">
+                          {g.finalGrade !== null
+                            ? g.finalGrade.toFixed(2)
+                            : 'INC'}
+                        </TableCell>
                         <TableCell className="text-xs">{g.remark}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-
-                <p className="mt-6 text-center text-xs text-muted-foreground">
-                  This transcript is a system-generated document from the University Admin Portal.
-                </p>
-              </div>
+              </PrintableDocument>
             </>
           )}
         </DialogContent>

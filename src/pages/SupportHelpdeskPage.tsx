@@ -1,30 +1,17 @@
-import { useState, useMemo } from 'react';
-import {
-  Search,
-  LifeBuoy,
-  Send,
-  CheckCircle2,
-  Clock,
-  ArrowRight,
-} from 'lucide-react';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { StatusBadge } from '@/components/shared/StatusBadge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -32,13 +19,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { StatusBadge } from '@/components/shared/StatusBadge';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { EmptyState } from '@/components/shared/EmptyState';
-import { supportTickets as initialTickets, ticketCategoryOptions } from '@/data/mock-data';
-import type { SupportTicket, TicketReply, TicketStatus } from '@/types';
-import { toast } from 'sonner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { useAdminCollection } from '@/data/context';
+import { ticketCategoryOptions } from '@/data/mock-data';
+import { usePageIntent } from '@/hooks/use-page-intent';
+import {
+  formatDate,
+  initials,
+  replyToTicket,
+  today,
+  visibleTicket,
+} from '@/lib/domain';
 import { cn } from '@/lib/utils';
+import type { SupportTicket, TicketStatus } from '@/types';
+import { CheckCircle2, Clock, LifeBuoy, Search, Send } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 const categoryColors: Record<string, string> = {
   Enrollment: 'bg-blue-100 text-blue-800',
@@ -48,12 +45,19 @@ const categoryColors: Record<string, string> = {
 };
 
 export function SupportHelpdeskPage() {
-  const [tickets, setTickets] = useState<SupportTicket[]>(initialTickets);
+  const intent = usePageIntent();
+  const [tickets, setTickets] = useAdminCollection('tickets');
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const detailRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selectedTicketId && window.matchMedia('(max-width: 1023px)').matches)
+      detailRef.current?.scrollIntoView({ block: 'start' });
+  }, [selectedTicketId]);
 
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
@@ -62,71 +66,87 @@ export function SupportHelpdeskPage() {
         t.studentName.toLowerCase().includes(search.toLowerCase()) ||
         t.subject.toLowerCase().includes(search.toLowerCase()) ||
         t.ticketNumber.toLowerCase().includes(search.toLowerCase());
-      const matchCategory = categoryFilter === 'all' || t.category === categoryFilter;
+      const matchCategory =
+        categoryFilter === 'all' || t.category === categoryFilter;
       return matchTab && matchSearch && matchCategory;
     });
   }, [tickets, activeTab, search, categoryFilter]);
 
-  const counts = useMemo(() => ({
-    all: tickets.length,
-    Open: tickets.filter((t) => t.status === 'Open').length,
-    'In Progress': tickets.filter((t) => t.status === 'In Progress').length,
-    Resolved: tickets.filter((t) => t.status === 'Resolved').length,
-  }), [tickets]);
+  const counts = useMemo(
+    () => ({
+      all: tickets.length,
+      Open: tickets.filter((t) => t.status === 'Open').length,
+      'In Progress': tickets.filter((t) => t.status === 'In Progress').length,
+      Resolved: tickets.filter((t) => t.status === 'Resolved').length,
+    }),
+    [tickets]
+  );
 
-  const selectedTicket = tickets.find((t) => t.id === selectedTicketId) || null;
+  useEffect(() => {
+    if (intent.recordId) {
+      setActiveTab('all');
+      setSearch('');
+      setCategoryFilter('all');
+      setSelectedTicketId(intent.recordId);
+    }
+  }, [intent.recordId]);
+  const selectedTicket = visibleTicket(filtered, selectedTicketId);
+  useEffect(() => {
+    if (selectedTicketId && !filtered.some((t) => t.id === selectedTicketId)) {
+      setSelectedTicketId(null);
+      setReplyText('');
+    }
+  }, [filtered, selectedTicketId]);
 
   const updateTicketStatus = (id: string, status: TicketStatus) => {
-    setTickets((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status, dateUpdated: new Date().toISOString().split('T')[0] } : t))
+    return setTickets(
+      (prev) =>
+        prev.map((t) =>
+          t.id === id ? { ...t, status, dateUpdated: today() } : t
+        ),
+      'Updated ticket status to ' + status
     );
   };
 
-  const addReply = (id: string, message: string, resolve: boolean) => {
-    const reply: TicketReply = {
-      id: `r-${Date.now()}`,
-      author: 'Admin',
-      message,
-      timestamp: new Date().toISOString().split('T')[0],
-      isAdmin: true,
-    };
-    setTickets((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              replies: [...t.replies, reply],
-              status: resolve ? 'Resolved' : 'In Progress',
-              dateUpdated: new Date().toISOString().split('T')[0],
-            }
-          : t
-      )
+  const addReply = (id: string, message: string, resolve: boolean) =>
+    setTickets(
+      (prev) =>
+        prev.map((t) => (t.id === id ? replyToTicket(t, message, resolve) : t)),
+      resolve ? 'Replied and resolved ticket' : 'Replied to ticket'
     );
-  };
-
   const handleMarkInProgress = () => {
     if (!selectedTicket) return;
-    updateTicketStatus(selectedTicket.id, 'In Progress');
-    toast.success('Ticket updated', { description: `${selectedTicket.ticketNumber} marked as In Progress.` });
+    if (!updateTicketStatus(selectedTicket.id, 'In Progress')) return;
+    toast.success('Ticket updated', {
+      description: `${selectedTicket.ticketNumber} marked as In Progress.`,
+    });
   };
 
   const handleReply = () => {
     if (!selectedTicket || !replyText.trim()) {
-      toast.error('Reply is empty', { description: 'Please enter a reply before sending.' });
+      toast.error('Reply is empty', {
+        description: 'Please enter a reply before sending.',
+      });
       return;
     }
-    addReply(selectedTicket.id, replyText.trim(), false);
-    toast.success('Reply sent', { description: `Reply sent to ${selectedTicket.studentName}. Ticket marked as In Progress.` });
+    if (!addReply(selectedTicket.id, replyText.trim(), false)) return;
+    toast.success('Reply saved', {
+      description: `Reply saved to ${selectedTicket.ticketNumber}. Ticket marked as In Progress.`,
+    });
     setReplyText('');
   };
 
   const handleReplyAndResolve = () => {
     if (!selectedTicket || !replyText.trim()) {
-      toast.error('Reply is empty', { description: 'Please enter a reply before resolving.' });
+      toast.error('Reply is empty', {
+        description: 'Please enter a reply before resolving.',
+      });
       return;
     }
-    addReply(selectedTicket.id, replyText.trim(), true);
-    toast.success('Ticket resolved', { description: `Reply sent and ${selectedTicket.ticketNumber} marked as Resolved.` });
+    if (!addReply(selectedTicket.id, replyText.trim(), true)) return;
+    toast.success('Ticket resolved', {
+      description: `Reply saved and ${selectedTicket.ticketNumber} marked as Resolved.`,
+    });
     setReplyText('');
   };
 
@@ -144,11 +164,18 @@ export function SupportHelpdeskPage() {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList
+          className="max-w-full justify-start overflow-x-auto"
+          aria-label="Status filters"
+        >
           <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
           <TabsTrigger value="Open">Open ({counts.Open})</TabsTrigger>
-          <TabsTrigger value="In Progress">In Progress ({counts['In Progress']})</TabsTrigger>
-          <TabsTrigger value="Resolved">Resolved ({counts.Resolved})</TabsTrigger>
+          <TabsTrigger value="In Progress">
+            In Progress ({counts['In Progress']})
+          </TabsTrigger>
+          <TabsTrigger value="Resolved">
+            Resolved ({counts.Resolved})
+          </TabsTrigger>
         </TabsList>
 
         {/* Filters */}
@@ -156,6 +183,7 @@ export function SupportHelpdeskPage() {
           <div className="relative flex-1 sm:min-w-[240px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              aria-label="Search by student, subject, or ticket number..."
               placeholder="Search by student, subject, or ticket number..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -163,13 +191,18 @@ export function SupportHelpdeskPage() {
             />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectTrigger
+              aria-label="Category"
+              className="w-full sm:w-[160px]"
+            >
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
               {ticketCategoryOptions.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -178,7 +211,7 @@ export function SupportHelpdeskPage() {
         <TabsContent value={activeTab} className="mt-4">
           <div className="grid gap-4 lg:grid-cols-5">
             {/* Ticket List */}
-            <div className="lg:col-span-2 space-y-2">
+            <div ref={listRef} className="min-w-0 lg:col-span-2 space-y-2">
               {filtered.length === 0 ? (
                 <Card>
                   <CardContent className="p-0">
@@ -194,9 +227,18 @@ export function SupportHelpdeskPage() {
                   <Card
                     key={ticket.id}
                     className={cn(
-                      'cursor-pointer transition-all hover:shadow-md',
+                      'min-w-0 cursor-pointer transition-all hover:shadow-md focus-visible:outline focus-visible:outline-2',
                       selectedTicketId === ticket.id && 'ring-2 ring-primary'
                     )}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Open ticket ${ticket.ticketNumber}: ${ticket.subject}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openTicket(ticket);
+                      }
+                    }}
                     onClick={() => openTicket(ticket)}
                   >
                     <CardContent className="p-4">
@@ -204,21 +246,32 @@ export function SupportHelpdeskPage() {
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <Avatar className="h-9 w-9 shrink-0">
                             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                              {ticket.studentName.split(' ').map((n) => n[0]).join('')}
+                              {initials(ticket.studentName)}
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{ticket.subject}</p>
-                            <p className="text-xs text-muted-foreground truncate">{ticket.studentName} · {ticket.ticketNumber}</p>
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {ticket.subject}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {ticket.studentName} · {ticket.ticketNumber}
+                            </p>
                           </div>
                         </div>
                         <StatusBadge status={ticket.status} showDot />
                       </div>
                       <div className="mt-2 flex items-center gap-2">
-                        <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold', categoryColors[ticket.category])}>
+                        <span
+                          className={cn(
+                            'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold',
+                            categoryColors[ticket.category]
+                          )}
+                        >
                           {ticket.category}
                         </span>
-                        <span className="text-xs text-muted-foreground">{ticket.dateCreated}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(ticket.dateCreated)}
+                        </span>
                       </div>
                     </CardContent>
                   </Card>
@@ -227,7 +280,18 @@ export function SupportHelpdeskPage() {
             </div>
 
             {/* Ticket Details */}
-            <div className="lg:col-span-3">
+            <div ref={detailRef} className="min-w-0 lg:col-span-3 scroll-mt-4">
+              {selectedTicket && (
+                <Button
+                  variant="ghost"
+                  className="mb-2 lg:hidden"
+                  onClick={() =>
+                    listRef.current?.scrollIntoView({ block: 'start' })
+                  }
+                >
+                  Back to ticket list
+                </Button>
+              )}
               {!selectedTicket ? (
                 <Card className="h-full">
                   <CardContent className="p-0">
@@ -243,13 +307,22 @@ export function SupportHelpdeskPage() {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <CardTitle className="text-base">{selectedTicket.subject}</CardTitle>
-                        <CardDescription>{selectedTicket.ticketNumber}</CardDescription>
+                        <CardTitle className="text-base">
+                          {selectedTicket.subject}
+                        </CardTitle>
+                        <CardDescription>
+                          {selectedTicket.ticketNumber}
+                        </CardDescription>
                       </div>
                       <StatusBadge status={selectedTicket.status} showDot />
                     </div>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold', categoryColors[selectedTicket.category])}>
+                      <span
+                        className={cn(
+                          'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold',
+                          categoryColors[selectedTicket.category]
+                        )}
+                      >
                         {selectedTicket.category}
                       </span>
                     </div>
@@ -259,41 +332,72 @@ export function SupportHelpdeskPage() {
                     <div className="flex items-center gap-3 rounded-lg border border-border p-3">
                       <Avatar className="h-10 w-10">
                         <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                          {selectedTicket.studentName.split(' ').map((n) => n[0]).join('')}
+                          {initials(selectedTicket.studentName)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="text-sm font-medium text-foreground">{selectedTicket.studentName}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{selectedTicket.studentNumber}</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {selectedTicket.studentName}
+                        </p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {selectedTicket.studentNumber}
+                        </p>
                       </div>
                     </div>
 
                     {/* Original Concern */}
                     <div className="rounded-lg border border-border bg-muted/30 p-4">
-                      <p className="text-xs font-semibold text-muted-foreground mb-1">Concern</p>
-                      <p className="text-sm text-foreground">{selectedTicket.message}</p>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">
+                        Concern
+                      </p>
+                      <p className="text-sm text-foreground">
+                        {selectedTicket.message}
+                      </p>
                       <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="h-3 w-3" />
-                        {selectedTicket.dateCreated}
+                        {formatDate(selectedTicket.dateCreated)}
                       </p>
                     </div>
 
                     {/* Conversation Thread */}
                     {selectedTicket.replies.length > 0 && (
                       <div>
-                        <p className="text-xs font-semibold text-muted-foreground mb-2">Conversation</p>
-                        <ScrollArea className="max-h-[200px]">
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">
+                          Conversation
+                        </p>
+                        <ScrollArea className="h-[200px]">
                           <div className="space-y-3 pr-2">
                             {selectedTicket.replies.map((reply) => (
-                              <div key={reply.id} className={cn('flex gap-2', reply.isAdmin ? 'justify-end' : 'justify-start')}>
-                                <div className={cn(
-                                  'rounded-lg p-3 max-w-[80%]',
-                                  reply.isAdmin ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                                )}>
-                                  <p className="text-xs font-semibold mb-0.5">{reply.author}</p>
+                              <div
+                                key={reply.id}
+                                className={cn(
+                                  'flex gap-2',
+                                  reply.isAdmin
+                                    ? 'justify-end'
+                                    : 'justify-start'
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    'rounded-lg p-3 max-w-[85%] break-words',
+                                    reply.isAdmin
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'bg-muted'
+                                  )}
+                                >
+                                  <p className="text-xs font-semibold mb-0.5">
+                                    {reply.author}
+                                  </p>
                                   <p className="text-sm">{reply.message}</p>
-                                  <p className={cn('text-xs mt-1', reply.isAdmin ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-                                    {reply.timestamp}
+                                  <p
+                                    className={cn(
+                                      'text-xs mt-1',
+                                      reply.isAdmin
+                                        ? 'text-primary-foreground/70'
+                                        : 'text-muted-foreground'
+                                    )}
+                                  >
+                                    {formatDate(reply.timestamp)}
                                   </p>
                                 </div>
                               </div>
@@ -307,6 +411,7 @@ export function SupportHelpdeskPage() {
                     {selectedTicket.status !== 'Resolved' && (
                       <div className="space-y-3 border-t border-border pt-3">
                         <Textarea
+                          aria-label="Reply to selected ticket"
                           placeholder="Type your reply..."
                           value={replyText}
                           onChange={(e) => setReplyText(e.target.value)}
@@ -314,16 +419,27 @@ export function SupportHelpdeskPage() {
                         />
                         <div className="flex flex-wrap gap-2">
                           {selectedTicket.status === 'Open' && (
-                            <Button variant="outline" className="gap-2" onClick={handleMarkInProgress}>
+                            <Button
+                              variant="outline"
+                              className="gap-2"
+                              onClick={handleMarkInProgress}
+                            >
                               <Clock className="h-4 w-4" />
                               Mark In Progress
                             </Button>
                           )}
-                          <Button variant="outline" className="gap-2" onClick={handleReply}>
+                          <Button
+                            variant="outline"
+                            className="gap-2"
+                            onClick={handleReply}
+                          >
                             <Send className="h-4 w-4" />
                             Reply
                           </Button>
-                          <Button className="gap-2" onClick={handleReplyAndResolve}>
+                          <Button
+                            className="gap-2"
+                            onClick={handleReplyAndResolve}
+                          >
                             <CheckCircle2 className="h-4 w-4" />
                             Reply & Resolve
                           </Button>
@@ -334,7 +450,9 @@ export function SupportHelpdeskPage() {
                     {selectedTicket.status === 'Resolved' && (
                       <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3">
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        <p className="text-sm font-medium text-green-800">This ticket has been resolved.</p>
+                        <p className="text-sm font-medium text-green-800">
+                          This ticket has been resolved.
+                        </p>
                       </div>
                     )}
                   </CardContent>

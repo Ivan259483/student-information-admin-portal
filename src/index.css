@@ -79,21 +79,69 @@ body {
   }
 }
 
+[role='dialog'] table {
+  min-width: 480px;
+  overflow-wrap: normal;
+}
+
 @media print {
-  body * {
-    visibility: hidden;
+  @page {
+    size: A4;
+    margin: 15mm;
   }
-  .print-area,
-  .print-area * {
-    visibility: visible;
+  body {
+    min-width: 0;
+    background: white;
   }
-  .print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
-  .no-print {
+  body > :not([role='dialog']),
+  body > [role='dialog']:not(:has(.print-area)) {
     display: none !important;
   }
+  body > [role='dialog'] {
+    position: static !important;
+    inset: auto !important;
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+    display: block;
+  }
+  .print-area {
+    width: 100%;
+    border: 0 !important;
+    padding: 0 !important;
+  }
+  .print-area * {
+    overflow: visible !important;
+  }
+  .print-area tr {
+    break-inside: avoid;
+  }
+  .print-area thead {
+    display: table-header-group;
+  }
+  .print-area table {
+    min-width: 0 !important;
+  }
+  .no-print,
+  [role='dialog'] > button {
+    display: none !important;
+  }
+}
+
+button:focus-visible,
+[role='button']:focus-visible,
+a:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+[role='dialog'] {
+  overflow-wrap: anywhere;
 }

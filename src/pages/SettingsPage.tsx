@@ -1,25 +1,14 @@
-import { useState } from 'react';
-import {
-  Save,
-  Check,
-  CalendarDays,
-  GraduationCap,
-  ClipboardCheck,
-  Bell,
-  Settings as SettingsIcon,
-} from 'lucide-react';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -27,23 +16,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { initialSettings } from '@/data/mock-data';
+import { Switch } from '@/components/ui/switch';
+import { useAdminCollection } from '@/data/context';
 import type { SystemSettings } from '@/types';
+import {
+  Bell,
+  CalendarDays,
+  Check,
+  ClipboardCheck,
+  GraduationCap,
+  Save,
+} from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
 export function SettingsPage() {
-  const [settings, setSettings] = useState<SystemSettings>(initialSettings);
+  const [sharedSettings, saveSettings] = useAdminCollection('settings');
+  const [settings, setSettings] = useState<SystemSettings>(sharedSettings);
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
+    if (!saveSettings(settings, 'Updated academic period and system settings'))
+      return;
     setSaved(true);
-    toast.success('Settings saved', { description: 'System settings have been updated successfully.' });
+    toast.success('Settings saved', {
+      description: 'System settings have been updated successfully.',
+    });
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const updateSetting = <K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) => {
+  const updateSetting = <K extends keyof SystemSettings>(
+    key: K,
+    value: SystemSettings[K]
+  ) => {
+    setSaved(false);
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -51,7 +57,7 @@ export function SettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Settings"
-        description="Configure school system controls and preferences"
+        description="Configure school controls and preferences. Save to apply changes across the Admin Portal."
         breadcrumbs={[{ label: 'Admin' }, { label: 'Settings' }]}
         actions={
           <Button className="gap-2" onClick={handleSave} disabled={saved}>
@@ -79,7 +85,9 @@ export function SettingsPage() {
             </div>
             <div>
               <CardTitle className="text-base">Academic Settings</CardTitle>
-              <CardDescription>Current academic year and semester</CardDescription>
+              <CardDescription>
+                Current academic year and semester
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -98,7 +106,9 @@ export function SettingsPage() {
               <Label htmlFor="semester">Semester</Label>
               <Select
                 value={settings.semester}
-                onValueChange={(v) => updateSetting('semester', v)}
+                onValueChange={(v) =>
+                  updateSetting('semester', v as SystemSettings['semester'])
+                }
               >
                 <SelectTrigger id="semester">
                   <SelectValue placeholder="Select semester" />
@@ -130,12 +140,15 @@ export function SettingsPage() {
         <CardContent>
           <div className="flex items-center justify-between rounded-lg border border-border p-4">
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Enrollment Open</Label>
+              <Label htmlFor="enrollment-open" className="text-sm font-medium">
+                Enrollment Open
+              </Label>
               <p className="text-xs text-muted-foreground">
                 Allow students to submit enrollment requests
               </p>
             </div>
             <Switch
+              id="enrollment-open"
               checked={settings.enrollmentOpen}
               onCheckedChange={(v) => updateSetting('enrollmentOpen', v)}
             />
@@ -152,19 +165,24 @@ export function SettingsPage() {
             </div>
             <div>
               <CardTitle className="text-base">Grade Controls</CardTitle>
-              <CardDescription>Manage grade encoding availability</CardDescription>
+              <CardDescription>
+                Manage grade encoding availability
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between rounded-lg border border-border p-4">
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Grade Encoding Open</Label>
+              <Label htmlFor="grade-encoding" className="text-sm font-medium">
+                Grade Encoding Open
+              </Label>
               <p className="text-xs text-muted-foreground">
                 Allow instructors and admins to encode grades
               </p>
             </div>
             <Switch
+              id="grade-encoding"
               checked={settings.gradeEncodingOpen}
               onCheckedChange={(v) => updateSetting('gradeEncodingOpen', v)}
             />
@@ -180,44 +198,60 @@ export function SettingsPage() {
               <Bell className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle className="text-base">Notification Preferences</CardTitle>
-              <CardDescription>Choose which alerts you want to receive</CardDescription>
+              <CardTitle className="text-base">
+                Notification Preferences
+              </CardTitle>
+              <CardDescription>
+                Choose which alerts you want to receive
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between rounded-lg border border-border p-4">
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">New Enrollment Notifications</Label>
+              <Label
+                htmlFor="notify-enrollment"
+                className="text-sm font-medium"
+              >
+                New Enrollment Notifications
+              </Label>
               <p className="text-xs text-muted-foreground">
                 Get notified when a student submits an enrollment request
               </p>
             </div>
             <Switch
+              id="notify-enrollment"
               checked={settings.notifyNewEnrollments}
               onCheckedChange={(v) => updateSetting('notifyNewEnrollments', v)}
             />
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border p-4">
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">New Ticket Notifications</Label>
+              <Label htmlFor="notify-tickets" className="text-sm font-medium">
+                New Ticket Notifications
+              </Label>
               <p className="text-xs text-muted-foreground">
                 Get notified when a student opens a support ticket
               </p>
             </div>
             <Switch
+              id="notify-tickets"
               checked={settings.notifyNewTickets}
               onCheckedChange={(v) => updateSetting('notifyNewTickets', v)}
             />
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border p-4">
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">System Activity Notifications</Label>
+              <Label htmlFor="notify-activity" className="text-sm font-medium">
+                System Activity Notifications
+              </Label>
               <p className="text-xs text-muted-foreground">
                 Get notified about general system actions and changes
               </p>
             </div>
             <Switch
+              id="notify-activity"
               checked={settings.notifySystemActivity}
               onCheckedChange={(v) => updateSetting('notifySystemActivity', v)}
             />

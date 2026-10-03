@@ -1,18 +1,13 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  Bell,
-  Search,
-  Menu,
-  ChevronDown,
-  User,
-  Settings as SettingsIcon,
-  LogOut,
-  Check,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useAdminSession } from '@/auth/context';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,10 +16,28 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAdminCollection, useAdminData } from '@/data/context';
+import { formatDate } from '@/lib/domain';
+import { searchAdmin } from '@/lib/search';
 import { cn } from '@/lib/utils';
-import { notifications as initialNotifications } from '@/data/mock-data';
+import {
+  Bell,
+  ChevronDown,
+  LogOut,
+  Menu,
+  Search,
+  Settings as SettingsIcon,
+  User,
+} from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -32,13 +45,24 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const navigate = useNavigate();
-  const [notifList, setNotifList] = useState(initialNotifications);
+  const { state } = useAdminData();
+  const { session, signOut } = useAdminSession();
+  const [notifList, setNotifList] = useAdminCollection('notifications');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const results = searchAdmin(state, query);
   const unreadCount = notifList.filter((n) => !n.read).length;
 
   const handleNotificationClick = (id: string) => {
-    setNotifList((prev) =>
+    const saved = setNotifList((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    if (saved) {
+      setNotificationsOpen(false);
+      navigate(notifList.find((n) => n.id === id)?.href || '/');
+    }
   };
 
   const handleMarkAllRead = () => {
@@ -49,6 +73,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-white/95 px-4 backdrop-blur-sm sm:px-6">
       {/* Mobile menu */}
       <Button
+        aria-label="Open navigation"
         variant="ghost"
         size="icon"
         onClick={onMenuClick}
@@ -58,19 +83,28 @@ export function Header({ onMenuClick }: HeaderProps) {
       </Button>
 
       {/* Search */}
-      <div className="relative hidden flex-1 sm:block sm:max-w-md">
+      <div className="relative min-w-0 flex-1 sm:max-w-md">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search students, enrollments, tickets..."
-          className="pl-9 bg-muted/50 border-transparent focus-visible:bg-background focus-visible:border-input"
-        />
+        <button
+          onClick={() => setSearchOpen(true)}
+          aria-label="Search Admin Portal"
+          className="h-9 w-full rounded-md bg-muted/50 pl-9 pr-2 text-left text-sm text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="sm:hidden">Search</span>
+          <span className="hidden sm:inline">Search the Admin Portal…</span>
+        </button>
       </div>
 
-      <div className="flex flex-1 items-center justify-end gap-2 sm:flex-none">
+      <div className="ml-auto flex shrink-0 items-center justify-end gap-2">
         {/* Notifications */}
-        <Popover>
+        <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
+            <Button
+              aria-label={`Notifications, ${unreadCount} unread`}
+              variant="ghost"
+              size="icon"
+              className="relative"
+            >
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
                 <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
@@ -111,9 +145,15 @@ export function Header({ onMenuClick }: HeaderProps) {
                         <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
                       )}
                       <div className={cn('flex-1', notif.read && 'pl-5')}>
-                        <p className="text-sm font-medium text-foreground">{notif.title}</p>
-                        <p className="text-xs text-muted-foreground">{notif.description}</p>
-                        <p className="text-xs text-muted-foreground/70 mt-0.5">{notif.timestamp}</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {notif.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {notif.description}
+                        </p>
+                        <p className="text-xs text-muted-foreground/70 mt-0.5">
+                          {formatDate(notif.timestamp)}
+                        </p>
                       </div>
                     </button>
                   ))}
@@ -126,14 +166,19 @@ export function Header({ onMenuClick }: HeaderProps) {
         {/* Profile */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-accent">
+            <button
+              aria-label="Admin account menu"
+              className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-accent"
+            >
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                   AD
                 </AvatarFallback>
               </Avatar>
               <div className="hidden text-left sm:block">
-                <p className="text-sm font-medium leading-tight text-foreground">Admin</p>
+                <p className="text-sm font-medium leading-tight text-foreground">
+                  Admin
+                </p>
                 <p className="text-xs text-muted-foreground">Registrar</p>
               </div>
               <ChevronDown className="hidden h-4 w-4 text-muted-foreground sm:block" />
@@ -142,10 +187,12 @@ export function Header({ onMenuClick }: HeaderProps) {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <p className="font-medium">Admin User</p>
-              <p className="text-xs font-normal text-muted-foreground">admin@university.edu</p>
+              <p className="text-xs font-normal text-muted-foreground">
+                Local demo session
+              </p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setProfileOpen(true)}>
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>
@@ -154,13 +201,87 @@ export function Header({ onMenuClick }: HeaderProps) {
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              onClick={signOut}
+              className="text-destructive focus:text-destructive"
+            >
               <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
+              End demo session
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Admin Profile</DialogTitle>
+            <DialogDescription>
+              Current local demonstration session.
+            </DialogDescription>
+          </DialogHeader>
+          <dl className="space-y-3">
+            <div>
+              <dt className="text-sm text-muted-foreground">Name</dt>
+              <dd>{session?.name}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Role</dt>
+              <dd>{session?.role}</dd>
+            </div>
+          </dl>
+          <p className="text-sm text-muted-foreground">
+            Production authentication is not connected. Use sample records only;
+            data is saved in this browser.
+          </p>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Search Admin Portal</DialogTitle>
+            <DialogDescription>
+              Find students, enrollments, tickets, and announcements.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            aria-label="Global search"
+            placeholder="Search by name, ID, subject, or title…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <div
+            aria-live="polite"
+            className="max-h-[55dvh] overflow-y-auto space-y-1"
+          >
+            {results.map((result) => (
+              <button
+                key={result.id}
+                className="w-full rounded-md p-3 text-left hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => {
+                  navigate(result.href);
+                  setSearchOpen(false);
+                  setQuery('');
+                }}
+              >
+                <span className="block text-sm font-medium">
+                  {result.label}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {result.detail}
+                </span>
+              </button>
+            ))}
+            {!results.length && (
+              <p className="p-4 text-sm text-muted-foreground">
+                {query.trim()
+                  ? 'No matching records. Try a different name, ID, or keyword.'
+                  : 'Type to search across Admin records.'}
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }
