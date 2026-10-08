@@ -1,5 +1,5 @@
 import { PageLoading } from '@/components/shared/PageLoading';
-import { AUTH_EXPIRED_EVENT, tokenStore } from '@/lib/api';
+import { AUTH_EXPIRED_EVENT, TOKEN_KEY, tokenStore } from '@/lib/api';
 import { leaveTo, studentLoginUrl } from '@/lib/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
@@ -50,12 +50,18 @@ export function SessionProvider({
     const restoredFromCache = (event: PageTransitionEvent) => {
       if (event.persisted && !tokenStore.get()) leaveTo(studentLoginUrl());
     };
+    // Signing out in one tab removes the shared token; sign out every other tab too.
+    const signedOutElsewhere = (event: StorageEvent) => {
+      if (event.key === TOKEN_KEY && !event.newValue) expired();
+    };
     window.addEventListener(AUTH_EXPIRED_EVENT, expired);
     window.addEventListener('pageshow', restoredFromCache);
+    window.addEventListener('storage', signedOutElsewhere);
     return () => {
       active = false;
       window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
       window.removeEventListener('pageshow', restoredFromCache);
+      window.removeEventListener('storage', signedOutElsewhere);
     };
   }, [client]);
   return (

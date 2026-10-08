@@ -212,6 +212,16 @@ describe('Admin routes and workflows', () => {
     await waitFor(() => expect(leaveTo).toHaveBeenCalledWith(STUDENT_LOGIN));
     expect(screen.queryByLabelText('Password')).toBeNull();
   });
+  it('signs out when another tab signs out', async () => {
+    app('/', undefined, fakeAuth());
+    expect(
+      await screen.findByRole('heading', { name: 'Dashboard', level: 1 })
+    ).toBeTruthy();
+    window.dispatchEvent(
+      new StorageEvent('storage', { key: 'edutrack_admin_token', newValue: null })
+    );
+    await waitFor(() => expect(leaveTo).toHaveBeenCalledWith(STUDENT_LOGIN));
+  });
   it('signs out to the EduTrack login and clears the session', async () => {
     const user = userEvent.setup();
     const auth = fakeAuth();

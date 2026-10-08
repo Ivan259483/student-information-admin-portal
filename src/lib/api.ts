@@ -7,7 +7,7 @@ export const API_URL: string =
 export const STUDENT_PORTAL_URL: string =
   import.meta.env.VITE_STUDENT_PORTAL_URL ?? 'http://localhost:5173';
 
-const TOKEN_KEY = 'edutrack_admin_token';
+export const TOKEN_KEY = 'edutrack_admin_token';
 export const AUTH_EXPIRED_EVENT = 'edutrack:auth-expired';
 
 export const tokenStore = {
