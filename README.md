@@ -1,6 +1,8 @@
 # student-information-admin-portal
 
-Admin portal of EduTrack SIS (React + TypeScript + Axios). Students use the EduTrack student portal; both share the EduTrack Express/MongoDB API.
+Admin portal of **EduTrack SIS**, a MERN student information system (React + TypeScript + Axios).
+Students use the EduTrack student portal, and both portals share the EduTrack Express/MongoDB REST API.
+The API and the student portal live in the [edutrack-sis](https://github.com/Ivan259483/edutrack-sis) repository.
 
 ## Run and verify
 
@@ -22,8 +24,10 @@ npm audit --omit=dev
 
 ## Backend connection (EduTrack SIS)
 
-This portal is the administrator side of **EduTrack SIS** (`~/Desktop/edutrack-sis`). It signs in and
-stores every record through the EduTrack Express/MongoDB REST API. See `edutrack-sis/README.md` for the
+This portal is the administrator side of **EduTrack SIS**
+([edutrack-sis](https://github.com/Ivan259483/edutrack-sis), cloned next to this folder). It signs in and
+stores every record through the EduTrack Express/MongoDB REST API. See the
+[edutrack-sis README](https://github.com/Ivan259483/edutrack-sis#readme) for the
 full setup (MongoDB, seeding, running all three apps).
 
 - Runs on http://localhost:5174 (`strictPort`). Configure it with a `.env` file (see `.env.example`):
