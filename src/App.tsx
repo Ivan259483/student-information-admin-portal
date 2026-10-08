@@ -1,4 +1,4 @@
-import { LoginPage, RequireAdmin, SessionProvider } from '@/auth/session';
+import { LoginRedirect, RequireAdmin, SessionProvider } from '@/auth/session';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { PageLoading } from '@/components/shared/PageLoading';
@@ -45,7 +45,7 @@ const Settings = lazy(() =>
 export function AdminRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login" element={<LoginRedirect />} />
       <Route element={<RequireAdmin />}>
         <Route element={<AdminLayout />}>
           <Route index element={<Dashboard />} />

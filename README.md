@@ -26,12 +26,23 @@ This portal is the administrator side of **EduTrack SIS** (`~/Desktop/edutrack-s
 stores every record through the EduTrack Express/MongoDB REST API. See `edutrack-sis/README.md` for the
 full setup (MongoDB, seeding, running all three apps).
 
-- Runs on http://localhost:5174 (`strictPort`). The API defaults to `http://localhost:5001/api`;
-  override with `VITE_API_URL` / `VITE_STUDENT_PORTAL_URL` (see `.env.example`).
-- **Login**: `/login` posts to `/api/auth/login` (admin accounts only) and keeps the JWT in
-  `localStorage` (`edutrack_admin_token`). Admins who sign in on the EduTrack login page are handed
-  over with `#token=…`, which is validated with `/api/auth/me` and removed from the address bar.
-  A 401 from the API ends the session.
+- Runs on http://localhost:5174 (`strictPort`). Configure it with a `.env` file (see `.env.example`):
+
+  | Variable | Default | Purpose |
+  | --- | --- | --- |
+  | `VITE_API_URL` | `http://localhost:5001/api` | EduTrack API base URL |
+  | `VITE_STUDENT_PORTAL_URL` | `http://localhost:5173` | EduTrack student portal; its login page is the only sign-in screen |
+
+  Set `VITE_STUDENT_PORTAL_URL` to wherever the student portal actually runs (for example
+  `http://localhost:5175` if another app holds 5173) and restart `npm run dev`.
+- **Sign-in**: there is no admin login form. Administrators sign in on the EduTrack login page
+  (Administrator tab); it hands the JWT over as `#token=…`, which is validated with
+  `/api/auth/me`, stored in `localStorage` (`edutrack_admin_token`) and removed from the address bar.
+- **Signed out**: any admin page, including `/login`, redirects to
+  `VITE_STUDENT_PORTAL_URL/login?role=admin` with `location.replace`, so it isn't kept in history.
+  **Sign out** clears the admin token and goes to that same page; Back cannot reopen the
+  dashboard (pages restored from the browser's back/forward cache are re-checked). A 401 from the
+  API ends the session the same way.
 - **Data**: after login, `GET /api/admin/bootstrap` loads all records. Pages keep using the same store
   (`useAdminCollection`), so validation in `src/data/transitions.ts` still runs first; each committed
   change is then translated into REST calls (`src/data/sync.ts`: POST new, PUT changed, DELETE removed)
@@ -43,7 +54,8 @@ full setup (MongoDB, seeding, running all three apps).
 ## Architecture
 
 ```text
-src/auth/                JWT session (EduTrack API), login page and route guard
+src/auth/                JWT session (EduTrack API handoff) and route guard
+src/lib/navigation.ts    Redirect to the EduTrack login page (Administrator tab)
 src/lib/api.ts           Axios instance, token storage, API error messages
 src/data/remote.tsx      Loads records from the API and syncs committed changes
 src/data/sync.ts         State diff -> REST requests

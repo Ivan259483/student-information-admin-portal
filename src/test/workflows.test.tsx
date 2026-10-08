@@ -18,6 +18,14 @@ import type { AdminRepository } from '@/data/repository';
 import { seedState } from '@/data/transitions';
 import { useAdminData } from '@/data/context';
 import type { AdminState } from '@/data/schema';
+import { leaveTo } from '@/lib/navigation';
+
+// Leaving for the EduTrack login page is a full-page navigation; record it instead.
+vi.mock('@/lib/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/navigation')>()),
+  leaveTo: vi.fn(),
+}));
+const STUDENT_LOGIN = 'http://localhost:5173/login?role=admin';
 
 const admin: AdminSession = {
   id: 'u1',
@@ -25,15 +33,10 @@ const admin: AdminSession = {
   email: 'admin@edutrack.edu',
   role: 'admin',
 };
-// Fake server: signed in unless `signedOut`, accepts only the demo password.
+// Fake server: signed in unless `signedOut`.
 const fakeAuth = (signedOut = false): AuthClient => ({
   restore: async () => (signedOut ? null : admin),
-  signIn: async (email, password) => {
-    if (email !== admin.email || password !== 'Admin123!')
-      throw new Error('Invalid email/student ID or password.');
-    return admin;
-  },
-  signOut: () => {},
+  signOut: vi.fn(),
 });
 function app(
   route: string,
@@ -196,25 +199,30 @@ describe('Admin routes and workflows', () => {
       seedState().students[0].fullName
     );
   });
-  it('guards routes when signed out and returns after signing in', async () => {
-    const user = userEvent.setup();
+  it('sends signed-out visitors to the EduTrack login (Administrator tab)', async () => {
     app('/students', undefined, fakeAuth(true));
+    await waitFor(() => expect(leaveTo).toHaveBeenCalledWith(STUDENT_LOGIN));
+    expect(screen.queryByRole('heading', { name: 'Student Directory' })).toBeNull();
     expect(
-      await screen.findByRole('heading', { name: 'EduTrack Admin' })
-    ).toBeTruthy();
-    await user.type(screen.getByLabelText('Email'), 'admin@edutrack.edu');
-    await user.type(screen.getByLabelText('Password'), 'wrong-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    expect((await screen.findByRole('alert')).textContent).toMatch(/Invalid/);
-    await user.clear(screen.getByLabelText('Password'));
-    await user.type(screen.getByLabelText('Password'), 'Admin123!');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    expect(
-      await screen.findByRole('heading', {
-        name: 'Student Directory',
-        level: 1,
-      })
-    ).toBeTruthy();
+      screen.getByRole('link', { name: 'EduTrack sign-in page' }).getAttribute('href')
+    ).toBe(STUDENT_LOGIN);
+  });
+  it('has no login form of its own: /login redirects too', async () => {
+    app('/login', undefined, fakeAuth(true));
+    await waitFor(() => expect(leaveTo).toHaveBeenCalledWith(STUDENT_LOGIN));
+    expect(screen.queryByLabelText('Password')).toBeNull();
+  });
+  it('signs out to the EduTrack login and clears the session', async () => {
+    const user = userEvent.setup();
+    const auth = fakeAuth();
+    app('/', undefined, auth);
+    await user.click(
+      await screen.findByRole('button', { name: 'Admin account menu' })
+    );
+    await user.click(await screen.findByRole('menuitem', { name: 'Sign out' }));
+    expect(auth.signOut).toHaveBeenCalledOnce();
+    await waitFor(() => expect(leaveTo).toHaveBeenCalledWith(STUDENT_LOGIN));
+    expect(screen.queryByRole('heading', { name: 'Dashboard', level: 1 })).toBeNull();
   });
 });
 

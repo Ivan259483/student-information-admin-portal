@@ -1,12 +1,8 @@
 import { PageLoading } from '@/components/shared/PageLoading';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { apiErrorMessage, AUTH_EXPIRED_EVENT, STUDENT_PORTAL_URL } from '@/lib/api';
-import { GraduationCap, Loader2, Lock } from 'lucide-react';
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { toast } from 'sonner';
+import { AUTH_EXPIRED_EVENT, tokenStore } from '@/lib/api';
+import { leaveTo, studentLoginUrl } from '@/lib/navigation';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
 import { apiAuthClient } from './client';
 import {
   Context,
@@ -48,12 +44,18 @@ export function SessionProvider({
     const expired = () => {
       setSession(null);
       setStatus('signed-out');
-      toast.error('Your session has ended. Please sign in again.');
+    };
+    // A page restored from the back/forward cache after signing out must not
+    // show admin data again.
+    const restoredFromCache = (event: PageTransitionEvent) => {
+      if (event.persisted && !tokenStore.get()) leaveTo(studentLoginUrl());
     };
     window.addEventListener(AUTH_EXPIRED_EVENT, expired);
+    window.addEventListener('pageshow', restoredFromCache);
     return () => {
       active = false;
       window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
+      window.removeEventListener('pageshow', restoredFromCache);
     };
   }, [client]);
   return (
@@ -61,11 +63,6 @@ export function SessionProvider({
       value={{
         session,
         status,
-        signIn: async (email, password) => {
-          const next = await client.signIn(email, password);
-          setSession(next);
-          setStatus('signed-in');
-        },
         signOut: () => {
           client.signOut();
           setSession(null);
@@ -78,112 +75,32 @@ export function SessionProvider({
   );
 }
 
-export function RequireAdmin() {
-  const { status } = useAdminSession();
-  const location = useLocation();
-  if (status === 'loading') return <PageLoading />;
-  return status === 'signed-in' ? (
-    <Outlet />
-  ) : (
-    <Navigate
-      to="/login"
-      replace
-      state={{ from: location.pathname + location.search }}
-    />
+// Signed out: go to the EduTrack login page (Administrator tab).
+function StudentLoginRedirect() {
+  const url = studentLoginUrl();
+  useEffect(() => leaveTo(url), [url]);
+  return (
+    <main className="flex min-h-dvh items-center justify-center p-6 text-sm text-muted-foreground">
+      <p>
+        Redirecting to the{' '}
+        <a className="font-medium text-primary underline" href={url}>
+          EduTrack sign-in page
+        </a>
+        …
+      </p>
+    </main>
   );
 }
 
-const safeReturnPath = (from: unknown) =>
-  typeof from === 'string' &&
-  /^\/(students|enrollment|grades|schedules|announcements|helpdesk|settings)?(\?[\w=%&-]*)?$/.test(
-    from
-  )
-    ? from
-    : '/';
-
-export function LoginPage() {
-  const { status, signIn } = useAdminSession();
-  const location = useLocation();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+export function RequireAdmin() {
+  const { status } = useAdminSession();
   if (status === 'loading') return <PageLoading />;
-  if (status === 'signed-in')
-    return <Navigate to={safeReturnPath(location.state?.from)} replace />;
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    setError('');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
-      return setError('Enter a valid administrator email address.');
-    if (!password) return setError('Enter your password.');
-    setSubmitting(true);
-    try {
-      await signIn(email.trim(), password);
-    } catch (cause) {
-      setError(apiErrorMessage(cause));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-  return (
-    <main className="flex min-h-dvh items-center justify-center bg-muted/40 p-6">
-      <div className="w-full max-w-sm space-y-6 rounded-xl border bg-card p-8 shadow-sm">
-        <div className="space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <GraduationCap className="h-6 w-6" />
-          </div>
-          <h1 className="text-2xl font-bold">EduTrack Admin</h1>
-          <p className="text-sm text-muted-foreground">
-            Sign in with your administrator account.
-          </p>
-        </div>
-        <form className="space-y-4" onSubmit={submit} noValidate>
-          {error && (
-            <p
-              role="alert"
-              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {error}
-            </p>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="admin-email">Email</Label>
-            <Input
-              id="admin-email"
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@edutrack.edu"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="admin-password">Password</Label>
-            <Input
-              id="admin-password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <Button className="w-full" type="submit" disabled={submitting}>
-            {submitting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Lock className="mr-2 h-4 w-4" />
-            )}
-            Sign in
-          </Button>
-        </form>
-        <p className="text-center text-sm text-muted-foreground">
-          Student?{' '}
-          <a className="font-medium text-primary hover:underline" href={`${STUDENT_PORTAL_URL}/login`}>
-            Go to the student portal
-          </a>
-        </p>
-      </div>
-    </main>
-  );
+  return status === 'signed-in' ? <Outlet /> : <StudentLoginRedirect />;
+}
+
+// /login: the admin portal has no sign-in form of its own.
+export function LoginRedirect() {
+  const { status } = useAdminSession();
+  if (status === 'loading') return <PageLoading />;
+  return status === 'signed-in' ? <Navigate to="/" replace /> : <StudentLoginRedirect />;
 }

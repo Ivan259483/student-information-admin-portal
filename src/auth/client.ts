@@ -13,7 +13,7 @@ const toSession = (user: ApiUser): AdminSession => {
   return { id: user.id, name: user.name, email: user.email, role: 'admin' };
 };
 
-// JWT authentication against the EduTrack backend.
+// JWT session handed over by the EduTrack login page (student portal).
 export const apiAuthClient: AuthClient = {
   async restore(handoffToken) {
     if (handoffToken) tokenStore.set(handoffToken);
@@ -25,15 +25,6 @@ export const apiAuthClient: AuthClient = {
       tokenStore.clear();
       return null;
     }
-  },
-  async signIn(email, password) {
-    const { data } = await api.post<{ token: string; user: ApiUser }>(
-      '/auth/login',
-      { identifier: email, password, role: 'admin' }
-    );
-    const session = toSession(data.user);
-    tokenStore.set(data.token);
-    return session;
   },
   signOut() {
     tokenStore.clear();
