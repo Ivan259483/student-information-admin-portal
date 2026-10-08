@@ -1,8 +1,9 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { ZodError } from 'zod';
 import { Context, type Store } from './context';
 import { localRepository, type AdminRepository } from './repository';
+import type { AdminState } from './schema';
 import { applyChange, seedState } from './transitions';
 
 const actionTypes = {
@@ -19,9 +20,15 @@ const actionTypes = {
 export function AdminProvider({
   children,
   repository = localRepository,
+  onCommit,
+  snapshot,
 }: {
   children: ReactNode;
   repository?: AdminRepository;
+  /** Called after each committed change, e.g. to sync it to the server. */
+  onCommit?: (previous: AdminState, next: AdminState) => void;
+  /** Newer records from the server; replaces the current state when it changes. */
+  snapshot?: AdminState;
 }) {
   const [loaded] = useState(() => {
     try {
@@ -37,6 +44,11 @@ export function AdminProvider({
   const [state, setState] = useState(loaded.state);
   const current = useRef(state);
   const [error, setError] = useState<string | null>(loaded.error);
+  useEffect(() => {
+    if (!snapshot || snapshot === current.current) return;
+    current.current = snapshot;
+    setState(snapshot);
+  }, [snapshot]);
   const update: Store['update'] = (key, change, action) => {
     try {
       if (loaded.error) throw new Error(loaded.error);
@@ -117,6 +129,7 @@ export function AdminProvider({
       current.current = next;
       setState(next);
       setError(null);
+      onCommit?.(previous, next);
       return true;
     } catch (cause) {
       const message =

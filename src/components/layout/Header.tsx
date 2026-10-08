@@ -1,4 +1,5 @@
 import { useAdminSession } from '@/auth/context';
+import { ChangePasswordForm } from '@/components/shared/ChangePasswordForm';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,7 +25,7 @@ import {
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAdminCollection, useAdminData } from '@/data/context';
-import { formatDate } from '@/lib/domain';
+import { formatDate, initials } from '@/lib/domain';
 import { searchAdmin } from '@/lib/search';
 import { cn } from '@/lib/utils';
 import {
@@ -172,23 +173,23 @@ export function Header({ onMenuClick }: HeaderProps) {
             >
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                  AD
+                  {session ? initials(session.name) : 'AD'}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden text-left sm:block">
                 <p className="text-sm font-medium leading-tight text-foreground">
-                  Admin
+                  {session?.name ?? 'Admin'}
                 </p>
-                <p className="text-xs text-muted-foreground">Registrar</p>
+                <p className="text-xs text-muted-foreground">Administrator</p>
               </div>
               <ChevronDown className="hidden h-4 w-4 text-muted-foreground sm:block" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
-              <p className="font-medium">Admin User</p>
+              <p className="font-medium">{session?.name}</p>
               <p className="text-xs font-normal text-muted-foreground">
-                Local demo session
+                {session?.email}
               </p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -206,7 +207,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               className="text-destructive focus:text-destructive"
             >
               <LogOut className="mr-2 h-4 w-4" />
-              End demo session
+              Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -216,7 +217,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           <DialogHeader>
             <DialogTitle>Admin Profile</DialogTitle>
             <DialogDescription>
-              Current local demonstration session.
+              Signed in to the EduTrack backend.
             </DialogDescription>
           </DialogHeader>
           <dl className="space-y-3">
@@ -225,14 +226,15 @@ export function Header({ onMenuClick }: HeaderProps) {
               <dd>{session?.name}</dd>
             </div>
             <div>
+              <dt className="text-sm text-muted-foreground">Email</dt>
+              <dd>{session?.email}</dd>
+            </div>
+            <div>
               <dt className="text-sm text-muted-foreground">Role</dt>
-              <dd>{session?.role}</dd>
+              <dd>Administrator</dd>
             </div>
           </dl>
-          <p className="text-sm text-muted-foreground">
-            Production authentication is not connected. Use sample records only;
-            data is saved in this browser.
-          </p>
+          <ChangePasswordForm />
         </DialogContent>
       </Dialog>
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>

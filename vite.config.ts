@@ -12,4 +12,7 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  // Fixed port: the backend's CORS list and the student portal link here.
+  server: { port: 5174, strictPort: true },
+  preview: { port: 5174, strictPort: true },
 });

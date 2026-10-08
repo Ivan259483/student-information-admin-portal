@@ -1,6 +1,6 @@
 # student-information-admin-portal
 
-Admin-only React/TypeScript portal. The existing visual system and eight Admin pages are retained. No Student Portal is implemented.
+Admin portal of EduTrack SIS (React + TypeScript + Axios). Students use the EduTrack student portal; both share the EduTrack Express/MongoDB API.
 
 ## Run and verify
 
@@ -20,20 +20,33 @@ npm audit --omit=dev
 
 `npm run build` creates `dist/`. Production hosting must serve `index.html` for non-asset Admin routes so direct navigation and refresh work. Test the deployment's rewrite configuration separately; Vite's local fallback is not proof of a host's configuration.
 
-## Demo data and session
+## Backend connection (EduTrack SIS)
 
-- Use sample data only. This is a local demonstration, **not production authentication or a secure student-record system**.
-- `src/data/store.tsx` owns all shared records. Pages retain only transient filters, selection, and form drafts.
-- `src/data/repository.ts` stores a validated, versioned envelope under `university-admin:v1`. Replace this repository for the shared database phase.
-- Writes are validated and persisted before the UI commits them. Read/write failures are visible. Corrupt storage is preserved; stale-tab writes are rejected with a reload prompt. This is not a multi-user database transaction system.
-- The initial sample dataset is loaded only when there is no saved envelope. Browser origin/port matters: different ports have separate saved data. Tests use isolated storage/origins.
-- “End demo session” ends only the tab's demo session. It does not authenticate users, revoke credentials, or erase local records. The profile explains this explicitly.
-- Back up the existing localStorage entry through browser developer tools before any manual reset/recovery. Do not clear live records casually. Student CSV exports are not a full database backup.
+This portal is the administrator side of **EduTrack SIS** (`~/Desktop/edutrack-sis`). It signs in and
+stores every record through the EduTrack Express/MongoDB REST API. See `edutrack-sis/README.md` for the
+full setup (MongoDB, seeding, running all three apps).
+
+- Runs on http://localhost:5174 (`strictPort`). The API defaults to `http://localhost:5001/api`;
+  override with `VITE_API_URL` / `VITE_STUDENT_PORTAL_URL` (see `.env.example`).
+- **Login**: `/login` posts to `/api/auth/login` (admin accounts only) and keeps the JWT in
+  `localStorage` (`edutrack_admin_token`). Admins who sign in on the EduTrack login page are handed
+  over with `#token=…`, which is validated with `/api/auth/me` and removed from the address bar.
+  A 401 from the API ends the session.
+- **Data**: after login, `GET /api/admin/bootstrap` loads all records. Pages keep using the same store
+  (`useAdminCollection`), so validation in `src/data/transitions.ts` still runs first; each committed
+  change is then translated into REST calls (`src/data/sync.ts`: POST new, PUT changed, DELETE removed)
+  and sent in order. If the server rejects a change, a toast explains why and the data reloads from the
+  server. Records refresh every 20 s and on window focus so new student enrollments/tickets appear.
+- The server enforces the same business rules, so the database stays consistent with either portal.
+- `src/data/repository.ts` (localStorage) is still used by the tests as an offline repository.
 
 ## Architecture
 
 ```text
-src/auth/                Isolated demo-session provider and route guard
+src/auth/                JWT session (EduTrack API), login page and route guard
+src/lib/api.ts           Axios instance, token storage, API error messages
+src/data/remote.tsx      Loads records from the API and syncs committed changes
+src/data/sync.ts         State diff -> REST requests
 src/data/schema.ts       Persisted record validation
 src/data/transitions.ts  Seed data and shared mutation rules
 src/data/repository.ts   Replaceable local persistence boundary
@@ -50,20 +63,4 @@ Students with enrollment/grade/support history cannot be hard-deleted: update th
 
 Settings describe the current working academic period. Existing grade records retain their own historical period, which is shown on transcripts. Enrollment and schedule samples represent the current working dataset; multi-year enrollment/schedule history is deferred to the database schema phase.
 
-## Authentication/database phase
-
-Supabase is installed but no client, project configuration, keys, auth session, role policy, or database is configured. No environment variables are read today, so there is intentionally no `.env.example` with invented values.
-
-When that phase is explicitly authorized:
-
-1. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (or the project's legacy public anon-key variable if required). These are proposed future configuration names, not currently consumed variables.
-2. Create a genuine session adapter and server-authoritative Admin role checks. Replace the demo guard. Enforce database Row Level Security and least-privilege access.
-3. Replace local persistence with an asynchronous database repository, transactions, concurrency controls, migrations, audit retention, and loading/error handling.
-4. Enforce the same domain rules on the server. Model academic periods and historical relationships explicitly.
-5. Connect incoming enrollment/ticket events, notification delivery and shared records. Currently preferences govern local record events; there are no email/push/student-facing services.
-
-Never expose a Supabase service-role/secret key in a `VITE_*` variable or frontend source. `.env`, `.env.*`, and local environment files are ignored. Production authentication/database work and Student Portal work are not part of this stabilization.
-
 See [ADMIN_STABILIZATION_REPORT.md](ADMIN_STABILIZATION_REPORT.md) for changes, checks, dependency findings, and verification limits.
-
-[![Open in Bolt](https://bolt.new/static/open-in-bolt.svg)](https://bolt.new/~/sb1-2p1re8q2)

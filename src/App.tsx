@@ -1,9 +1,9 @@
-import { DemoSessionPage, RequireAdmin, SessionProvider } from '@/auth/session';
+import { LoginPage, RequireAdmin, SessionProvider } from '@/auth/session';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { PageLoading } from '@/components/shared/PageLoading';
 import { Toaster } from '@/components/ui/sonner';
-import { AdminProvider } from '@/data/store';
+import { RemoteAdminProvider } from '@/data/remote';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
@@ -45,7 +45,7 @@ const Settings = lazy(() =>
 export function AdminRoutes() {
   return (
     <Routes>
-      <Route path="/demo-session" element={<DemoSessionPage />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAdmin />}>
         <Route element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
@@ -67,11 +67,11 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <SessionProvider>
-          <AdminProvider>
+          <RemoteAdminProvider>
             <Suspense fallback={<PageLoading />}>
               <AdminRoutes />
             </Suspense>
-          </AdminProvider>
+          </RemoteAdminProvider>
           <Toaster position="top-right" richColors />
         </SessionProvider>
       </BrowserRouter>

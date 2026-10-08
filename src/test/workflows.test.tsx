@@ -11,6 +11,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { AdminRoutes } from '@/App';
 import { SessionProvider } from '@/auth/session';
+import type { AdminSession, AuthClient } from '@/auth/context';
 import { AdminProvider } from '@/data/store';
 import { createLocalRepository } from '@/data/repository';
 import type { AdminRepository } from '@/data/repository';
@@ -18,13 +19,30 @@ import { seedState } from '@/data/transitions';
 import { useAdminData } from '@/data/context';
 import type { AdminState } from '@/data/schema';
 
+const admin: AdminSession = {
+  id: 'u1',
+  name: 'Dr. Maria Santos',
+  email: 'admin@edutrack.edu',
+  role: 'admin',
+};
+// Fake server: signed in unless `signedOut`, accepts only the demo password.
+const fakeAuth = (signedOut = false): AuthClient => ({
+  restore: async () => (signedOut ? null : admin),
+  signIn: async (email, password) => {
+    if (email !== admin.email || password !== 'Admin123!')
+      throw new Error('Invalid email/student ID or password.');
+    return admin;
+  },
+  signOut: () => {},
+});
 function app(
   route: string,
-  repository: AdminRepository = createLocalRepository(localStorage)
+  repository: AdminRepository = createLocalRepository(localStorage),
+  auth: AuthClient = fakeAuth()
 ) {
   return render(
     <MemoryRouter initialEntries={[route]}>
-      <SessionProvider>
+      <SessionProvider client={auth}>
         <AdminProvider repository={repository}>
           <Suspense fallback={<p>Loading…</p>}>
             <AdminRoutes />
@@ -155,16 +173,19 @@ describe('Admin routes and workflows', () => {
       seedState().students[0].fullName
     );
   });
-  it('guards routes after demo sign out and supports resuming', async () => {
+  it('guards routes when signed out and returns after signing in', async () => {
     const user = userEvent.setup();
-    sessionStorage.setItem('admin-demo-signed-out', 'true');
-    app('/students');
+    app('/students', undefined, fakeAuth(true));
     expect(
-      await screen.findByRole('heading', { name: 'Demo session ended' })
+      await screen.findByRole('heading', { name: 'EduTrack Admin' })
     ).toBeTruthy();
-    await user.click(
-      screen.getByRole('button', { name: 'Start demo session' })
-    );
+    await user.type(screen.getByLabelText('Email'), 'admin@edutrack.edu');
+    await user.type(screen.getByLabelText('Password'), 'wrong-password');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/Invalid/);
+    await user.clear(screen.getByLabelText('Password'));
+    await user.type(screen.getByLabelText('Password'), 'Admin123!');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(
       await screen.findByRole('heading', {
         name: 'Student Directory',

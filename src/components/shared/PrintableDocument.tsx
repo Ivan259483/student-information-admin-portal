@@ -23,7 +23,7 @@ export function PrintableDocument({
       </div>
       {children}
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        System-generated {title.toLowerCase()} · Admin demonstration
+        System-generated {title.toLowerCase()} · EduTrack SIS
       </p>
     </section>
   );
