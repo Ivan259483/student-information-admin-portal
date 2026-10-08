@@ -21,6 +21,19 @@ import type { Student } from '@/types';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+type FieldErrors = Partial<Record<keyof Student, string>>;
+// Inline messages shown under each field (the schema still validates on save).
+function validateStudent(form: Student, labels: Record<string, string>) {
+  const errors: FieldErrors = {};
+  for (const [key, label] of Object.entries(labels))
+    if (!String(form[key as keyof Student] ?? '').trim())
+      errors[key as keyof Student] = `${label} is required.`;
+  if (!errors.email && !EMAIL.test(form.email.trim()))
+    errors.email = 'Enter a valid email address, e.g. name@school.edu.';
+  return errors;
+}
+
 export function StudentForm({
   student,
   onClose,
@@ -49,6 +62,7 @@ export function StudentForm({
       }
   );
   const [error, setError] = useState('');
+  const [submitted, setSubmitted] = useState(false);
   const update = (key: keyof Student, value: string) =>
     setForm((prev) => ({
       ...prev,
@@ -75,6 +89,24 @@ export function StudentForm({
     ['emergencyContactNumber', 'Emergency contact number', 'tel'],
     ['dateEnrolled', 'Date enrolled', 'date'],
   ] as const;
+  const labels: Record<string, string> = {
+    ...Object.fromEntries(fields.map(([key, label]) => [key, label])),
+    program: 'Program',
+    yearLevel: 'Year level',
+    section: 'Section',
+    academicStatus: 'Status',
+  };
+  const fieldErrors = submitted ? validateStudent(form, labels) : {};
+  const errorProps = (key: keyof Student) =>
+    fieldErrors[key]
+      ? { 'aria-invalid': true, 'aria-describedby': `student-${key}-error` }
+      : {};
+  const errorText = (key: keyof Student) =>
+    fieldErrors[key] && (
+      <p id={`student-${key}-error`} className="text-sm text-destructive">
+        {fieldErrors[key]}
+      </p>
+    );
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl">
@@ -86,8 +118,12 @@ export function StudentForm({
           </DialogDescription>
         </DialogHeader>
         <form
+          noValidate
           onSubmit={(event) => {
             event.preventDefault();
+            setSubmitted(true);
+            setError('');
+            if (Object.keys(validateStudent(form, labels)).length) return;
             const result = studentSchema.safeParse({
               ...form,
               avatarInitials: initials(form.fullName),
@@ -126,7 +162,10 @@ export function StudentForm({
                   type={type}
                   value={form[key]}
                   onChange={(e) => update(key, e.target.value)}
+                  className={fieldErrors[key] ? 'border-destructive' : undefined}
+                  {...errorProps(key)}
                 />
+                {errorText(key)}
               </div>
             ))}
             {(
@@ -160,9 +199,10 @@ export function StudentForm({
                 <select
                   required
                   id={`student-${key}`}
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+                  className={`flex h-9 w-full rounded-md border bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring ${fieldErrors[key] ? 'border-destructive' : 'border-input'}`}
                   value={form[key]}
                   onChange={(e) => update(key, e.target.value)}
+                  {...errorProps(key)}
                 >
                   <option value="" disabled>
                     Select {label.toLowerCase()}
@@ -171,6 +211,7 @@ export function StudentForm({
                     <option key={value}>{value}</option>
                   ))}
                 </select>
+                {errorText(key)}
               </div>
             ))}
           </div>

@@ -69,6 +69,29 @@ describe('Admin routes and workflows', () => {
       await screen.findByRole('heading', { name: heading, level: 1 })
     ).toBeTruthy();
   });
+  it('shows inline validation messages in the student form', async () => {
+    const user = userEvent.setup();
+    const repo = createLocalRepository(localStorage);
+    app('/', repo);
+    await user.click(
+      await screen.findByRole('button', { name: 'Add Student' })
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Add Student' });
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Save Student' })
+    );
+    expect(within(dialog).getByText('Student ID is required.')).toBeTruthy();
+    expect(within(dialog).getByText('Email is required.')).toBeTruthy();
+    const email = within(dialog).getByLabelText('Email', { exact: true });
+    expect(email.getAttribute('aria-invalid')).toBe('true');
+    await user.type(email, 'not-an-email');
+    expect(
+      within(dialog).getByText(
+        'Enter a valid email address, e.g. name@school.edu.'
+      )
+    ).toBeTruthy();
+    expect(repo.load()).toBeNull();
+  });
   it('opens a quick action and saves a student across remounts', async () => {
     const user = userEvent.setup();
     const repo = createLocalRepository(localStorage);
